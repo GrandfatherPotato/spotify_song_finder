@@ -50,6 +50,8 @@ export const envSchema = z.object({
       })
       .optional(),
   ),
+
+  VITE_LAST_FM_API_KEY: optionalText,
 })
 
 /** Adds the presence requirements that only apply to a production build. */
