@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  # Every push to every branch, so a branch is checked before a PR exists.
+  push:
+    branches: ['**']
+  # Every pull request, whatever its base branch. This also tests the merge
+  # commit rather than the branch tip, which is what the required check gates.
+  pull_request:
+
+# A newer push to the same branch makes the in-flight run irrelevant. Keyed on
+# the event too, so a branch's push run and its PR run do not cancel each other.
+concurrency:
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    env:
+      # Hooks are a local guard; CI runs the same checks directly.
+      HUSKY: '0'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs the exact Node and pnpm pinned in mise.toml, so CI and local
+      # development cannot drift. package.json sets engineStrict, so pnpm
+      # refuses to install under any other Node version anyway.
+      - uses: jdx/mise-action@v2
+
+      - name: Resolve pnpm store path
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Run the three gates as separate steps rather than via `pnpm lint`, so a
+      # failure names itself in the UI. `!cancelled()` keeps the later steps
+      # running after an earlier failure, so one run reports every problem
+      # instead of revealing them one push at a time.
+      - name: Type-check
+        run: pnpm type-check
+
+      - name: Prettier
+        if: ${{ !cancelled() }}
+        run: pnpm prettier
+
+      - name: ESLint
+        if: ${{ !cancelled() }}
+        run: pnpm eslint
+
+      - name: Tests
+        if: ${{ !cancelled() }}
+        run: pnpm test
