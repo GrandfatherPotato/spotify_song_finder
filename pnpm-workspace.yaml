@@ -1,0 +1,14 @@
+# pnpm 12 reads its settings from here, not from .npmrc or the "pnpm" field in
+# package.json.
+autoInstallPeers: true
+
+# Pin exact versions on install — no caret/tilde ranges in package.json.
+saveExact: true
+
+# Refuse to install under a Node/pnpm version other than the one in "engines".
+engineStrict: true
+
+# @testing-library/vue 8 still depends on @testing-library/dom 9; force the
+# single current version across the tree.
+overrides:
+  '@testing-library/dom': 10.4.2

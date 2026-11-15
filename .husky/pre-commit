@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -e
+
+pnpm lint-staged
+
+# Only consider files git tracks or would track, so gitignored trees (local tooling,
+# plugin caches) do not fail the check.
+for lock in yarn.lock package-lock.json; do
+    FOUND=$(git ls-files --cached --others --exclude-standard ":(glob)**/$lock")
+    if [ -n "$FOUND" ]; then
+        RED='\033[1;31m'
+        NC='\033[0m'
+        printf "${RED}%s file(s) found! we use pnpm on this project!${NC}\n" "$lock"
+        echo "$FOUND"
+        exit 1
+    fi
+done

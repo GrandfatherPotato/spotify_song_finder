@@ -1,0 +1,375 @@
+{
+  "operations": [
+    {
+      "method": "GET",
+      "path": "/albums",
+      "operationId": "get-multiple-albums"
+    },
+    {
+      "method": "GET",
+      "path": "/artists",
+      "operationId": "get-multiple-artists"
+    },
+    {
+      "method": "GET",
+      "path": "/artists/{id}/top-tracks",
+      "operationId": "get-an-artists-top-tracks"
+    },
+    {
+      "method": "GET",
+      "path": "/artists/{id}/related-artists",
+      "operationId": "get-an-artists-related-artists"
+    },
+    {
+      "method": "GET",
+      "path": "/shows",
+      "operationId": "get-multiple-shows"
+    },
+    {
+      "method": "GET",
+      "path": "/episodes",
+      "operationId": "get-multiple-episodes"
+    },
+    {
+      "method": "GET",
+      "path": "/audiobooks",
+      "operationId": "get-multiple-audiobooks"
+    },
+    {
+      "method": "PUT",
+      "path": "/me/audiobooks",
+      "operationId": "save-audiobooks-user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/me/audiobooks",
+      "operationId": "remove-audiobooks-user"
+    },
+    {
+      "method": "GET",
+      "path": "/me/audiobooks/contains",
+      "operationId": "check-users-saved-audiobooks"
+    },
+    {
+      "method": "GET",
+      "path": "/chapters",
+      "operationId": "get-several-chapters"
+    },
+    {
+      "method": "GET",
+      "path": "/tracks",
+      "operationId": "get-several-tracks"
+    },
+    {
+      "method": "GET",
+      "path": "/playlists/{playlist_id}/tracks",
+      "operationId": "get-playlists-tracks"
+    },
+    {
+      "method": "PUT",
+      "path": "/playlists/{playlist_id}/tracks",
+      "operationId": "reorder-or-replace-playlists-tracks"
+    },
+    {
+      "method": "POST",
+      "path": "/playlists/{playlist_id}/tracks",
+      "operationId": "add-tracks-to-playlist"
+    },
+    {
+      "method": "DELETE",
+      "path": "/playlists/{playlist_id}/tracks",
+      "operationId": "remove-tracks-playlist"
+    },
+    {
+      "method": "PUT",
+      "path": "/me/albums",
+      "operationId": "save-albums-user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/me/albums",
+      "operationId": "remove-albums-user"
+    },
+    {
+      "method": "GET",
+      "path": "/me/albums/contains",
+      "operationId": "check-users-saved-albums"
+    },
+    {
+      "method": "PUT",
+      "path": "/me/tracks",
+      "operationId": "save-tracks-user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/me/tracks",
+      "operationId": "remove-tracks-user"
+    },
+    {
+      "method": "GET",
+      "path": "/me/tracks/contains",
+      "operationId": "check-users-saved-tracks"
+    },
+    {
+      "method": "PUT",
+      "path": "/me/episodes",
+      "operationId": "save-episodes-user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/me/episodes",
+      "operationId": "remove-episodes-user"
+    },
+    {
+      "method": "GET",
+      "path": "/me/episodes/contains",
+      "operationId": "check-users-saved-episodes"
+    },
+    {
+      "method": "PUT",
+      "path": "/me/shows",
+      "operationId": "save-shows-user"
+    },
+    {
+      "method": "DELETE",
+      "path": "/me/shows",
+      "operationId": "remove-shows-user"
+    },
+    {
+      "method": "GET",
+      "path": "/me/shows/contains",
+      "operationId": "check-users-saved-shows"
+    },
+    {
+      "method": "GET",
+      "path": "/users/{user_id}",
+      "operationId": "get-users-profile"
+    },
+    {
+      "method": "GET",
+      "path": "/users/{user_id}/playlists",
+      "operationId": "get-list-users-playlists"
+    },
+    {
+      "method": "POST",
+      "path": "/users/{user_id}/playlists",
+      "operationId": "create-playlist-for-user"
+    },
+    {
+      "method": "PUT",
+      "path": "/playlists/{playlist_id}/followers",
+      "operationId": "follow-playlist"
+    },
+    {
+      "method": "DELETE",
+      "path": "/playlists/{playlist_id}/followers",
+      "operationId": "unfollow-playlist"
+    },
+    {
+      "method": "GET",
+      "path": "/browse/featured-playlists",
+      "operationId": "get-featured-playlists"
+    },
+    {
+      "method": "GET",
+      "path": "/browse/categories",
+      "operationId": "get-categories"
+    },
+    {
+      "method": "GET",
+      "path": "/browse/categories/{category_id}",
+      "operationId": "get-a-category"
+    },
+    {
+      "method": "GET",
+      "path": "/browse/categories/{category_id}/playlists",
+      "operationId": "get-a-categories-playlists"
+    },
+    {
+      "method": "GET",
+      "path": "/browse/new-releases",
+      "operationId": "get-new-releases"
+    },
+    {
+      "method": "PUT",
+      "path": "/me/following",
+      "operationId": "follow-artists-users"
+    },
+    {
+      "method": "DELETE",
+      "path": "/me/following",
+      "operationId": "unfollow-artists-users"
+    },
+    {
+      "method": "GET",
+      "path": "/me/following/contains",
+      "operationId": "check-current-user-follows"
+    },
+    {
+      "method": "GET",
+      "path": "/playlists/{playlist_id}/followers/contains",
+      "operationId": "check-if-user-follows-playlist"
+    },
+    {
+      "method": "GET",
+      "path": "/audio-features",
+      "operationId": "get-several-audio-features"
+    },
+    {
+      "method": "GET",
+      "path": "/audio-features/{id}",
+      "operationId": "get-audio-features"
+    },
+    {
+      "method": "GET",
+      "path": "/audio-analysis/{id}",
+      "operationId": "get-audio-analysis"
+    },
+    {
+      "method": "GET",
+      "path": "/recommendations",
+      "operationId": "get-recommendations"
+    },
+    {
+      "method": "GET",
+      "path": "/recommendations/available-genre-seeds",
+      "operationId": "get-recommendation-genres"
+    },
+    {
+      "method": "GET",
+      "path": "/markets",
+      "operationId": "get-available-markets"
+    }
+  ],
+  "fullyDeprecatedPaths": [
+    {
+      "path": "/albums",
+      "operationIds": ["get-multiple-albums"]
+    },
+    {
+      "path": "/artists",
+      "operationIds": ["get-multiple-artists"]
+    },
+    {
+      "path": "/artists/{id}/top-tracks",
+      "operationIds": ["get-an-artists-top-tracks"]
+    },
+    {
+      "path": "/artists/{id}/related-artists",
+      "operationIds": ["get-an-artists-related-artists"]
+    },
+    {
+      "path": "/shows",
+      "operationIds": ["get-multiple-shows"]
+    },
+    {
+      "path": "/episodes",
+      "operationIds": ["get-multiple-episodes"]
+    },
+    {
+      "path": "/audiobooks",
+      "operationIds": ["get-multiple-audiobooks"]
+    },
+    {
+      "path": "/me/audiobooks/contains",
+      "operationIds": ["check-users-saved-audiobooks"]
+    },
+    {
+      "path": "/chapters",
+      "operationIds": ["get-several-chapters"]
+    },
+    {
+      "path": "/tracks",
+      "operationIds": ["get-several-tracks"]
+    },
+    {
+      "path": "/playlists/{playlist_id}/tracks",
+      "operationIds": [
+        "get-playlists-tracks",
+        "reorder-or-replace-playlists-tracks",
+        "add-tracks-to-playlist",
+        "remove-tracks-playlist"
+      ]
+    },
+    {
+      "path": "/me/albums/contains",
+      "operationIds": ["check-users-saved-albums"]
+    },
+    {
+      "path": "/me/tracks/contains",
+      "operationIds": ["check-users-saved-tracks"]
+    },
+    {
+      "path": "/me/episodes/contains",
+      "operationIds": ["check-users-saved-episodes"]
+    },
+    {
+      "path": "/me/shows/contains",
+      "operationIds": ["check-users-saved-shows"]
+    },
+    {
+      "path": "/users/{user_id}",
+      "operationIds": ["get-users-profile"]
+    },
+    {
+      "path": "/users/{user_id}/playlists",
+      "operationIds": ["get-list-users-playlists", "create-playlist-for-user"]
+    },
+    {
+      "path": "/playlists/{playlist_id}/followers",
+      "operationIds": ["follow-playlist", "unfollow-playlist"]
+    },
+    {
+      "path": "/browse/featured-playlists",
+      "operationIds": ["get-featured-playlists"]
+    },
+    {
+      "path": "/browse/categories",
+      "operationIds": ["get-categories"]
+    },
+    {
+      "path": "/browse/categories/{category_id}",
+      "operationIds": ["get-a-category"]
+    },
+    {
+      "path": "/browse/categories/{category_id}/playlists",
+      "operationIds": ["get-a-categories-playlists"]
+    },
+    {
+      "path": "/browse/new-releases",
+      "operationIds": ["get-new-releases"]
+    },
+    {
+      "path": "/me/following/contains",
+      "operationIds": ["check-current-user-follows"]
+    },
+    {
+      "path": "/playlists/{playlist_id}/followers/contains",
+      "operationIds": ["check-if-user-follows-playlist"]
+    },
+    {
+      "path": "/audio-features",
+      "operationIds": ["get-several-audio-features"]
+    },
+    {
+      "path": "/audio-features/{id}",
+      "operationIds": ["get-audio-features"]
+    },
+    {
+      "path": "/audio-analysis/{id}",
+      "operationIds": ["get-audio-analysis"]
+    },
+    {
+      "path": "/recommendations",
+      "operationIds": ["get-recommendations"]
+    },
+    {
+      "path": "/recommendations/available-genre-seeds",
+      "operationIds": ["get-recommendation-genres"]
+    },
+    {
+      "path": "/markets",
+      "operationIds": ["get-available-markets"]
+    }
+  ]
+}

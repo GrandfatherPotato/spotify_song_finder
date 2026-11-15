@@ -1,0 +1,11 @@
+{
+  "url": "https://developer.spotify.com/reference/web-api/open-api-schema.yaml",
+  "sha256": "2d888d731358ae8a97126ffd4117d257305943f06721734abe9af24962bf38c3",
+  "fetchedAt": "2026-11-15",
+  "specVersion": "1.0.0",
+  "openapi": "3.0.3",
+  "pathCount": 70,
+  "operationCount": 96,
+  "deprecatedOperationCount": 48,
+  "fullyDeprecatedPathCount": 31
+}
