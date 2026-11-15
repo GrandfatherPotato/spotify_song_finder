@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import SpotifyLogin from './components/SpotifyLogin.vue'
+import { RouterView } from 'vue-router'
 </script>
 
 <template>
-  <SpotifyLogin />
+  <RouterView />
 </template>

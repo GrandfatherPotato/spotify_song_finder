@@ -69,7 +69,17 @@ describe('buildAuthorizeUrl', () => {
     expect(url.searchParams.get('client_id')).toBe('client-123')
     expect(url.searchParams.get('redirect_uri')).toBe(REDIRECT_URI)
     expect(url.searchParams.get('code_challenge_method')).toBe('S256')
-    expect(url.searchParams.get('scope')).toBe('user-read-private')
+  })
+
+  // Spelled out rather than imported from SPOTIFY_SCOPES: importing the same
+  // constant the source uses would assert only that the code equals itself,
+  // and a scope added "just in case" is exactly what this should catch.
+  it('requests only the three scopes the features need', async () => {
+    const url = new URL(await buildAuthorizeUrl())
+
+    expect(url.searchParams.get('scope')).toBe(
+      'user-read-private user-top-read user-read-recently-played',
+    )
   })
 
   it('stores the verifier and state so the callback can be verified', async () => {

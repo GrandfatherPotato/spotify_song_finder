@@ -35,6 +35,18 @@ On **27 November 2024** Spotify cut off eight endpoint groups for all apps regis
 
 **❌ FORBIDDEN**: writing code against any endpoint above, or proposing a feature that depends on one, without first telling the user it cannot work.
 
+### Genre labels are empty, not merely deprecated
+
+The spec marks these fields `deprecated: true`, which does not say whether they still carry data. Probed live on **15 November 2026** with a real user token: **0 of 5 artists returned a genre**, across both mainstream and niche (The Weeknd, Nirvana, Nick Cave & The Bad Seeds, Ethel Cain, 16 Horsepower).
+
+- `TrackObject` has **no `genres` field at all** — it never has
+- `AlbumObject.genres` is deprecated and documented as "The array is always empty"
+- `ArtistObject.genres` is deprecated and **comes back empty in practice**
+
+`GET /artists/{id}` is itself live and returns `200` — the field is dead, not the endpoint. Search is unaffected, and its `genre:` filter still works for querying _by_ a label even though no label can be read _off_ a track.
+
+**❌ FORBIDDEN**: proposing any label, genre or "similar in style" feature sourced from Spotify. The vocabulary has to come from elsewhere, and MusicBrainz is not it — recording-level `genres`/`tags` are empty there too, and one song maps to many recording MBIDs. Last.fm `track.getTopTags` is the practical source: per-track tags, `access-control-allow-origin: *`, and only a public `api_key`.
+
 ### Most deprecations are a shape migration, not a removal
 
 Separately from the restrictions above, Spotify has been renaming endpoints and marking the old

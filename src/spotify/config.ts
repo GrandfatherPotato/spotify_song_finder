@@ -3,7 +3,9 @@ export interface SpotifyConfig {
   redirectUri: string
 }
 
-export const SPOTIFY_SCOPES = ['user-read-private']
+// user-top-read and user-read-recently-played back the "artists you already
+// listen to" half of discovery; nothing here is requested speculatively.
+export const SPOTIFY_SCOPES = ['user-read-private', 'user-top-read', 'user-read-recently-played']
 
 const DEFAULT_CALLBACK_PATH = '/callback'
 
