@@ -35,9 +35,21 @@ On **27 November 2024** Spotify cut off eight endpoint groups for all apps regis
 
 **❌ FORBIDDEN**: writing code against any endpoint above, or proposing a feature that depends on one, without first telling the user it cannot work.
 
-Also deprecated, with a live replacement:
+### Most deprecations are a shape migration, not a removal
 
-- `/playlists/{id}/tracks` → use `/playlists/{id}/items`
+Separately from the restrictions above, Spotify has been renaming endpoints and marking the old
+shape `deprecated`. The capability still exists — reach for the new path:
+
+| Deprecated                                   | Use instead             |
+| -------------------------------------------- | ----------------------- |
+| `GET/POST/PUT/DELETE /playlists/{id}/tracks` | `/playlists/{id}/items` |
+| `POST /users/{user_id}/playlists`            | `POST /me/playlists`    |
+| `GET /users/{user_id}/playlists`             | `GET /me/playlists`     |
+| `GET /users/{user_id}`                       | `GET /me`               |
+
+The pattern: **`/users/{user_id}/…` → `/me/…`, and `…/tracks` → `…/items`.** Before concluding
+that a capability is gone, look for the renamed form — `POST /me/playlists` (`create-playlist`) is
+live even though `POST /users/{user_id}/playlists` (`create-playlist-for-user`) is not.
 
 ### The restriction list is not the whole problem
 
