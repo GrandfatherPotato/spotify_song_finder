@@ -140,3 +140,7 @@ The four that bite hardest:
 - **Spotify Web API**: Read `docs/spotify-api-context.md`
   - When: **always**, before any code touching `api.spotify.com` — auth, search, playlists, playback, token handling
   - Contains: OpenAPI source of truth, restricted endpoints, PKCE flow, redirect URI rules, scopes, token storage and refresh, rate limits and quota mode, error handling, review checklist
+
+- **Extended Streaming History import**: Read `docs/streaming-history-context.md`
+  - When: **always**, before any code that parses, stores or queries a user's streaming history export
+  - Contains: real export schema (the bundled PDF is stale), URI-vs-name track identity, DuckDB-WASM schema and storage decision, worker import pipeline and its memory trap, query conventions, privacy rules, build phasing, review checklist
