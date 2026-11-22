@@ -1,11 +1,17 @@
-# spotify_song_finder
+# Backtrack
 
-A playground for poking at the data Spotify exposes about music, and turning it into something
-useful: finding songs worth listening to, and building playlists out of them.
+Retrace what you've listened to. Two ways in, both running entirely in your own browser:
+
+- **Finder** — search the Spotify catalogue, then follow a track's Last.fm labels to others that
+  sound like it, ranked against what you already listen to.
+- **History** — load your Extended Streaming History export and explore years of plays: what you
+  returned to, what you dropped, and when. No Spotify account needed.
+
+Nothing is uploaded. The export is parsed, stored and queried on your machine; if you connect
+Spotify, the access token lives in the tab and nowhere else.
 
 The idea is exploratory rather than product-shaped. Pull down what the Web API offers — your top
-artists and tracks, saved songs, listening history, genre labels on artists — and see what can be
-built from it. If something interesting falls out, write it to a new playlist.
+artists and tracks, saved songs, genre labels on artists — and see what can be built from it.
 
 ## What's actually possible
 

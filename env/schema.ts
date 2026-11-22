@@ -20,6 +20,19 @@ function tryParseUrl(value: string): URL | null {
   }
 }
 
+/**
+ * Where this copy of the app is running. `local` unlocks conveniences that must
+ * never reach anyone else's browser — importing the gitignored `data/` export,
+ * for one. Anything unset is treated as `hosted`, so forgetting the variable
+ * fails closed.
+ */
+export const APP_ENV = {
+  local: 'local',
+  hosted: 'hosted',
+} as const
+
+export type AppEnv = (typeof APP_ENV)[keyof typeof APP_ENV]
+
 /** Vite yields `''` for a declared-but-blank variable; treat that as absent. */
 const optionalText = z.preprocess(
   (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
@@ -36,6 +49,8 @@ const optionalText = z.preprocess(
  * production bundle with no client ID is a real defect rather than a state.
  */
 export const envSchema = z.object({
+  VITE_APP_ENV: optionalText.pipe(z.enum([APP_ENV.local, APP_ENV.hosted]).default(APP_ENV.hosted)),
+
   VITE_SPOTIFY_CLIENT_ID: optionalText,
 
   VITE_SPOTIFY_REDIRECT_URI: optionalText.pipe(

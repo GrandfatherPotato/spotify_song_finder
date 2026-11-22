@@ -1,5 +1,5 @@
 {
-  "name": "spotify_song_finder",
+  "name": "backtrack",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -35,6 +35,7 @@
     "*.{js,json,css,md,yml,yaml,html}": "prettier --write"
   },
   "dependencies": {
+    "fflate": "0.8.3",
     "vue": "3.5.45",
     "vue-router": "5.5.1",
     "zod": "4.6.7"
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@commitlint/cli": "21.2.4",
     "@commitlint/config-conventional": "21.2.4",
+    "@duckdb/duckdb-wasm": "1.32.0",
     "@eslint-community/eslint-plugin-eslint-comments": "4.8.1",
     "@eslint/js": "10.0.1",
     "@testing-library/dom": "10.4.2",

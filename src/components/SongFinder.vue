@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import AppButton, { BUTTON_SIZE, BUTTON_TYPE, BUTTON_VARIANT } from './common/AppButton.vue'
 import { MAX_TRACKS_PER_ARTIST, findSimilar } from '../discovery/find'
 import { artistKey, groupByArtist } from '../discovery/score'
 import type { ScoredCandidate } from '../discovery/score'
@@ -243,16 +244,17 @@ function restart(): void {
           placeholder="Artist or song title…"
           :disabled="busy"
         />
-        <button
-          type="submit"
-          class="button button--primary"
+        <AppButton
+          :type="BUTTON_TYPE.submit"
+          :variant="BUTTON_VARIANT.primary"
+          :size="BUTTON_SIZE.medium"
           :disabled="busy || query.trim() === ''"
         >
           Search
-        </button>
-        <button v-if="seedTrack" type="button" class="button button--ghost" @click="restart">
+        </AppButton>
+        <AppButton v-if="seedTrack" :size="BUTTON_SIZE.medium" @click="restart">
           Start over
-        </button>
+        </AppButton>
       </form>
 
       <ul v-if="matches.length > 0" class="matches">
@@ -296,14 +298,14 @@ function restart(): void {
         </ul>
 
         <div class="actions">
-          <button
-            type="button"
-            class="button button--primary"
+          <AppButton
+            :variant="BUTTON_VARIANT.primary"
+            :size="BUTTON_SIZE.medium"
             :disabled="busy || selectedLabels.length === 0"
             @click="find"
           >
             {{ stage === STAGE.finding ? 'Searching…' : 'Find similar songs' }}
-          </button>
+          </AppButton>
         </div>
       </template>
 
@@ -436,32 +438,6 @@ function restart(): void {
 .input:focus-visible {
   outline: 2px solid var(--green);
   outline-offset: 2px;
-}
-
-.button {
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 12px 24px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.button--primary {
-  color: #0a0c0a;
-  background: var(--green);
-}
-
-.button--primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
-}
-
-.button--ghost {
-  color: var(--fg);
-  background: transparent;
-  border-color: var(--hairline);
 }
 
 .matches,

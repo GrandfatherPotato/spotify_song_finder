@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import BackLink from '../components/common/BackLink.vue'
+import AppButton, { BUTTON_SIZE, BUTTON_VARIANT } from '../components/common/AppButton.vue'
 import { beginLogin } from '../spotify/auth'
 import { findRedirectUriProblem, readSpotifyConfig } from '../spotify/config'
 import { describeError } from '../spotify/errors'
@@ -39,6 +41,8 @@ onMounted(async () => {
     <section class="panel">
       <p class="eyebrow">Spotify&nbsp;/&nbsp;Song&nbsp;Finder</p>
 
+      <BackLink />
+
       <template v-if="config === null">
         <h1 class="title">Add your client ID</h1>
         <p class="lede">
@@ -60,14 +64,14 @@ onMounted(async () => {
         </p>
 
         <div class="actions">
-          <button
-            type="button"
-            class="button button--primary"
+          <AppButton
+            :variant="BUTTON_VARIANT.primary"
+            :size="BUTTON_SIZE.medium"
             :disabled="busy || redirectProblem !== null"
             @click="signIn"
           >
             {{ busy ? 'Connecting…' : 'Continue with Spotify' }}
-          </button>
+          </AppButton>
         </div>
 
         <p class="note">
@@ -177,35 +181,6 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 10px;
   margin: 24px 0;
-}
-
-.button {
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  padding: 12px 26px;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.button:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 3px;
-}
-
-.button--primary {
-  color: var(--ink);
-  background: var(--green);
-}
-
-.button--primary:hover:not(:disabled) {
-  background: #25f06d;
-}
-
-.button--primary:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .note {

@@ -1,4 +1,4 @@
-import { parseEnv } from '../env/schema'
+import { APP_ENV, parseEnv } from '../env/schema'
 import type { Env } from '../env/schema'
 
 /**
@@ -12,3 +12,13 @@ import type { Env } from '../env/schema'
  * package itself cannot run here — it reads the filesystem.
  */
 export const env: Env = parseEnv(import.meta.env, 'import.meta.env')
+
+/**
+ * Whether this copy of the app may offer local-only conveniences.
+ *
+ * ⚠️ `VITE_APP_ENV` is inlined into the bundle at build time, so a deployment
+ * built with `local` keeps the escape hatch. Set it in `.env.local` only.
+ */
+export function isLocalEnvironment(): boolean {
+  return env.VITE_APP_ENV === APP_ENV.local
+}
