@@ -1,11 +1,24 @@
 import { describe, expect, it } from 'vitest'
 // Explicit .ts extension: tests/ is type-checked under `moduleResolution:
 // nodenext` (tsconfig.node.json), which requires it.
-import { buildEnvSchema, envSchema, parseEnv } from '../env/schema.ts'
+import { APP_ENV, buildEnvSchema, envSchema, parseEnv } from '../env/schema.ts'
 
 const CLIENT_ID = '0123456789abcdef0123456789abcdef'
 
 describe('envSchema', () => {
+  it('fails closed to hosted when the app environment is unset or blank', () => {
+    expect(envSchema.parse({}).VITE_APP_ENV).toBe(APP_ENV.hosted)
+    expect(envSchema.parse({ VITE_APP_ENV: '  ' }).VITE_APP_ENV).toBe(APP_ENV.hosted)
+  })
+
+  it('accepts local, which unlocks the data/ import', () => {
+    expect(envSchema.parse({ VITE_APP_ENV: 'local' }).VITE_APP_ENV).toBe(APP_ENV.local)
+  })
+
+  it('rejects an app environment it does not know', () => {
+    expect(envSchema.safeParse({ VITE_APP_ENV: 'staging' }).success).toBe(false)
+  })
+
   it('accepts an absent client ID — the app renders a not-configured state', () => {
     expect(envSchema.safeParse({}).success).toBe(true)
   })
@@ -69,6 +82,7 @@ describe('parseEnv', () => {
 
   it('returns the parsed values when valid', () => {
     expect(parseEnv({ VITE_SPOTIFY_CLIENT_ID: CLIENT_ID }, 'test')).toEqual({
+      VITE_APP_ENV: APP_ENV.hosted,
       VITE_SPOTIFY_CLIENT_ID: CLIENT_ID,
       VITE_SPOTIFY_REDIRECT_URI: undefined,
     })

@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import SongFinder from '../components/SongFinder.vue'
+import AppButton from '../components/common/AppButton.vue'
 import type { SpotifyUser } from '../spotify/api'
 import { fetchCurrentUser } from '../spotify/api'
 import { logOut } from '../spotify/auth'
@@ -15,7 +16,7 @@ const errorMessage = ref<string | null>(null)
 
 async function signOut(): Promise<void> {
   logOut()
-  await router.replace(ROUTE_PATH.signIn)
+  await router.replace(ROUTE_PATH.home)
 }
 
 onMounted(async () => {
@@ -35,7 +36,7 @@ onMounted(async () => {
       <div class="account">
         <img v-if="profile?.imageUrl" class="avatar" :src="profile.imageUrl" alt="" />
         <span v-if="profile" class="name">{{ profile.displayName }}</span>
-        <button type="button" class="signout" @click="signOut">Sign out</button>
+        <AppButton @click="signOut">Sign out</AppButton>
       </div>
     </header>
 
@@ -99,21 +100,6 @@ onMounted(async () => {
 
 .name {
   font-size: 14px;
-}
-
-.signout {
-  font: inherit;
-  font-size: 13px;
-  padding: 7px 16px;
-  color: #e9ede6;
-  background: transparent;
-  border: 1px solid rgba(232, 236, 230, 0.1);
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.signout:hover {
-  border-color: #8b9186;
 }
 
 .banner {

@@ -7,7 +7,10 @@ import SignInView from './SignInView.vue'
 
 const replace = vi.fn()
 
-vi.mock('vue-router', () => ({ useRouter: () => ({ replace }) }))
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ replace }),
+  RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+}))
 vi.mock('../spotify/auth', () => ({ beginLogin: vi.fn() }))
 
 const beginLoginMock = vi.mocked(beginLogin)
@@ -55,6 +58,14 @@ describe('SignInView', () => {
 
     expect((button as HTMLButtonElement).disabled).toBe(true)
     expect(screen.getByText(/127\.0\.0\.1/)).toBeTruthy()
+  })
+
+  it('offers a way back to the landing page', async () => {
+    render(SignInView)
+
+    const back = await screen.findByRole('link', { name: 'Back to the start' })
+
+    expect(back.getAttribute('href')).toBe('/')
   })
 
   it('sends an already-signed-in visitor straight to the finder', async () => {

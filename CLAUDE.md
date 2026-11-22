@@ -73,6 +73,10 @@ A Vue 3 + Vite + TypeScript single-page app for finding songs via the Spotify We
 - **ALWAYS place imports at the top of the file**, before any other code
 - **Prefer `unknown` over `any`** — `unknown` forces narrowing before use. Note the lint rule is deliberately off here, so this is on you to uphold
 - **Prefer parsing over asserting** — validate external data (Spotify API responses) into typed values rather than reaching for `as`. Type assertions are permitted here but are a smell on untrusted input
+- **NEVER read a SQL result as `Record<string, unknown>` in app code.** Every query pairs its statement with a Zod schema via `defineQuery`, and callers use `database.query(NAMED_QUERY)` so the row type is inferred, never hand-written or asserted. A query whose shape is only known at runtime — the debug console, a future "ask AI" — is the sole exception and uses `runQuery`
+  - **The schema is the type.** Export `z.infer<typeof row>`; never maintain a parallel `interface` alongside it
+  - **Declare the type DuckDB actually returns.** `count(*)` is BIGINT, `round()` DOUBLE, `strftime()` VARCHAR, `date_part()` BIGINT. Reach for `z.coerce` only with a stated reason — it hides the drift the schema exists to catch
+  - **❌ FORBIDDEN: defaulting a bad row to zero or `''`.** A renamed column must throw at the boundary; a plausible-looking `0` on a chart is worse than a visible failure
 - **Use British English** throughout code, comments and documentation
 - **NEVER repeat a string literal — name it once and import it.** A value written in two places is a value that will disagree in two places. Applies to storage keys, status/state values, protocol values, endpoint paths and user-facing messages
   - Unions come from a `const` object, not a bare type: `const STATUS = { busy: 'busy', ... } as const` then `type Status = (typeof STATUS)[keyof typeof STATUS]`. `enum` is unavailable — `erasableSyntaxOnly` is on
@@ -143,4 +147,4 @@ The four that bite hardest:
 
 - **Extended Streaming History import**: Read `docs/streaming-history-context.md`
   - When: **always**, before any code that parses, stores or queries a user's streaming history export
-  - Contains: real export schema (the bundled PDF is stale), URI-vs-name track identity, DuckDB-WASM schema and storage decision, worker import pipeline and its memory trap, query conventions, privacy rules, build phasing, review checklist
+  - Contains: real export schema (the bundled PDF is stale), URI-vs-name track identity, the storage decision and why OPFS was abandoned for a Parquet snapshot, the import pipeline and its memory trap, typed-query conventions, privacy rules, review checklist
