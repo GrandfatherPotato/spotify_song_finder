@@ -43,7 +43,10 @@ export interface HistoryDatabase {
   origin: string
   diagnostics: string
   /** Typed and validated. Prefer this wherever the shape is known up front. */
-  query: <Row>(named: NamedQuery<Row>) => Promise<Row[]>
+  query: <Row, Params extends readonly unknown[]>(
+    named: NamedQuery<Row, Params>,
+    ...params: Params
+  ) => Promise<Row[]>
   /** Untyped escape hatch, for the test page and ad-hoc SQL. */
   runQuery: (sql: string) => Promise<QueryRows>
   close: () => Promise<void>
@@ -219,6 +222,25 @@ export async function openHistoryDatabase(
   }
 }
 
+/**
+ * A statement with arguments goes through `prepare`, so the range the user
+ * picked is bound rather than pasted into SQL. Everything else takes the
+ * cheaper direct path.
+ */
+async function runNamed(
+  conn: duckdb.AsyncDuckDBConnection,
+  sql: string,
+  params: readonly unknown[],
+): Promise<QueryRows> {
+  if (params.length === 0) return toRows(await conn.query(sql))
+  const statement = await conn.prepare(sql)
+  try {
+    return toRows(await statement.query(...params))
+  } finally {
+    await statement.close()
+  }
+}
+
 async function describeDatabase(
   db: duckdb.AsyncDuckDB,
   conn: duckdb.AsyncDuckDBConnection,
@@ -230,8 +252,15 @@ async function describeDatabase(
     storage,
     origin: await loadData(db, conn, storage, source, onProgress),
     diagnostics: await collectDiagnostics(db, conn),
-    query: async <Row>(named: NamedQuery<Row>): Promise<Row[]> =>
-      named.row.array().parse(toRows(await conn.query(named.sql))),
+    query: async <Row, Params extends readonly unknown[]>(
+      named: NamedQuery<Row, Params>,
+      ...params: Params
+    ): Promise<Row[]> =>
+      named.row
+        .array()
+        .parse(
+          await runNamed(conn, named.sql, params.length > 0 ? params : (named.defaultParams ?? [])),
+        ),
     runQuery: async (sql: string) => toRows(await conn.query(sql)),
     close: async () => {
       await conn.close()
@@ -240,49 +269,27 @@ async function describeDatabase(
   }
 }
 
-let shared: Promise<HistoryDatabase> | null = null
-
-/**
- * One database per page load, shared by every visit to the view.
- *
- * Without this the worker is torn down on unmount and rebuilt on the next route
- * change, so navigating away and back re-imports the whole export. That is
- * separate from cross-session persistence, which the snapshot provides.
- */
-export function sharedHistoryDatabase(
-  source: ExportSource,
-  onProgress: ProgressHandler,
-): Promise<HistoryDatabase> {
-  shared ??= openHistoryDatabase(source, onProgress).catch((error: unknown) => {
-    shared = null
-    throw error
-  })
-  return shared
-}
-
 /**
  * Whether a previous import can be reopened without asking for the export
- * again — either this page load already holds the database, or a snapshot
- * written by a compatible schema version is waiting in IndexedDB.
+ * again: a snapshot written by a compatible schema version is waiting in
+ * IndexedDB. Whether this page load already holds an open database is the
+ * store's question, not this module's.
  */
-export async function hasStoredHistory(): Promise<boolean> {
-  if (shared !== null) return true
+export async function hasStoredSnapshot(): Promise<boolean> {
   return (await tryReadSnapshot()) !== null
 }
 
 /**
  * Discards everything an import produced: the saved snapshot, the stale OPFS
- * files and the cached database. The next open starts from the export again.
+ * files and the open database. The next open starts from the export again.
  */
-export async function resetHistoryStorage(): Promise<void> {
-  const pending = shared
-  shared = null
+export async function clearHistoryStorage(database: HistoryDatabase | null): Promise<void> {
   await clearSnapshot()
   // Close first: DuckDB holds exclusive sync access handles on the OPFS files,
   // so removing them while the worker lives fails silently and leaves them.
-  if (pending !== null) {
+  if (database !== null) {
     try {
-      await (await pending).close()
+      await database.close()
     } catch {
       // A database that never opened has nothing to close.
     }

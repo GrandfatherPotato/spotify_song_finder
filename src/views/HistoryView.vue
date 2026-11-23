@@ -2,8 +2,8 @@
 import { computed, onMounted, ref, shallowRef } from 'vue'
 import { useRouter } from 'vue-router'
 import BackLink from '../components/common/BackLink.vue'
-import { hasStoredHistory, resetHistoryStorage, sharedHistoryDatabase } from '../history'
-import type { HistoryDatabase, QueryRows } from '../history'
+import { useHistoryStore } from '../stores/history'
+import type { QueryRows } from '../history'
 import { describeOpfsRoot } from '../history/opfs'
 import { HISTORY_QUERIES } from '../history/duckdb/queries'
 import type { NamedQuery } from '../history/duckdb/query'
@@ -23,9 +23,10 @@ type QueryName = keyof typeof HISTORY_QUERIES
 
 const QUERY_NAMES = Object.keys(HISTORY_QUERIES) as QueryName[]
 
+const history = useHistoryStore()
+
 const status = ref<Status>(STATUS.importing)
 const message = ref('Starting up…')
-const database = shallowRef<HistoryDatabase | null>(null)
 const activeQuery = ref<QueryName | null>(null)
 const rows = shallowRef<QueryRows>([])
 const queryError = ref('')
@@ -43,13 +44,13 @@ async function load(): Promise<void> {
   try {
     const opfsBefore = await describeOpfsRoot()
     const started = performance.now()
-    database.value = await sharedHistoryDatabase(noExportSource(), (progress) => {
+    const opened = await history.open(noExportSource(), (progress) => {
       message.value = `${progress.message} (${progress.completed + 1}/${progress.total})`
     })
     const elapsed = Math.round(performance.now() - started)
-    message.value = `Loaded from ${database.value.origin}, stored in ${database.value.storage} — ${elapsed} ms`
+    message.value = `Loaded from ${opened.origin}, stored in ${opened.storage} — ${elapsed} ms`
     opfs.value = `OPFS on arrival: ${opfsBefore} · now: ${await describeOpfsRoot()}
-${database.value.diagnostics}`
+${opened.diagnostics}`
     status.value = STATUS.ready
   } catch (error) {
     message.value = error instanceof Error ? error.message : String(error)
@@ -60,7 +61,7 @@ ${database.value.diagnostics}`
 // Nothing here can import an export; that is the gate's job. Arriving without
 // one — a bookmark, or a snapshot cleared in another tab — means going back.
 onMounted(async () => {
-  if (await hasStoredHistory()) await load()
+  if (await history.isStored()) await load()
   else
     await router.replace({ path: ROUTE_PATH.history, query: { [NOTICE_PARAM]: NOTICE.noHistory } })
 })
@@ -69,25 +70,24 @@ onMounted(async () => {
 async function resetStorage(): Promise<void> {
   status.value = STATUS.importing
   message.value = 'Clearing stored history…'
-  database.value = null
   activeQuery.value = null
   rows.value = []
   queryError.value = ''
-  await resetHistoryStorage()
+  await history.reset()
   opfs.value = ''
   message.value = 'Stored history cleared.'
   status.value = STATUS.cleared
 }
 
 async function runQuery(name: QueryName): Promise<void> {
-  const handle = database.value
+  const handle = history.database
   if (handle === null) return
   activeQuery.value = name
   queryError.value = ''
   try {
     // Widened so one handler can run any named query; the console renders
     // whatever columns come back rather than knowing them ahead of time.
-    const named: NamedQuery<Record<string, unknown>> = HISTORY_QUERIES[name]
+    const named: NamedQuery<Record<string, unknown>, readonly unknown[]> = HISTORY_QUERIES[name]
     rows.value = await handle.query(named)
   } catch (error) {
     rows.value = []

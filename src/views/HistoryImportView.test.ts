@@ -2,7 +2,8 @@ import { render, screen, waitFor } from '@testing-library/vue'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { isLocalEnvironment } from '../env'
-import { hasStoredHistory, sharedHistoryDatabase } from '../history'
+import { hasStoredSnapshot, openHistoryDatabase } from '../history'
+import { stubHistoryDatabase } from '../test-support/history'
 import HistoryImportView from './HistoryImportView.vue'
 
 const replace = vi.fn()
@@ -15,13 +16,14 @@ vi.mock('vue-router', () => ({
 
 let query: Record<string, string> = {}
 vi.mock('../history', () => ({
-  hasStoredHistory: vi.fn(),
-  sharedHistoryDatabase: vi.fn(),
+  hasStoredSnapshot: vi.fn(),
+  openHistoryDatabase: vi.fn(),
+  clearHistoryStorage: vi.fn(),
 }))
 vi.mock('../env', () => ({ isLocalEnvironment: vi.fn() }))
 
-const hasStoredHistoryMock = vi.mocked(hasStoredHistory)
-const sharedDatabaseMock = vi.mocked(sharedHistoryDatabase)
+const hasStoredHistoryMock = vi.mocked(hasStoredSnapshot)
+const sharedDatabaseMock = vi.mocked(openHistoryDatabase)
 const isLocalEnvironmentMock = vi.mocked(isLocalEnvironment)
 
 const LOCAL_IMPORT_LABEL = 'Import from data/'
@@ -40,14 +42,7 @@ function pickedFile(path: string, content = PLAYS): File {
 }
 
 function stubDatabase() {
-  sharedDatabaseMock.mockResolvedValue({
-    storage: 'OPFS (persisted)',
-    origin: 'My Export',
-    diagnostics: 'duckdb v1.5.4',
-    query: vi.fn(),
-    runQuery: vi.fn(),
-    close: vi.fn(),
-  })
+  sharedDatabaseMock.mockResolvedValue(stubHistoryDatabase())
 }
 
 beforeEach(() => {

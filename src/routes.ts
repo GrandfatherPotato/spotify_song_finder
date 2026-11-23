@@ -7,6 +7,8 @@ export const ROUTE_PATH = {
   finder: '/finder',
   history: '/history',
   historyOverview: '/history/overview',
+  historyLeaderboard: '/history/leaderboard',
+  historyItem: '/history/item',
   historyTest: '/history/test',
 } as const
 
@@ -17,6 +19,8 @@ export const ROUTE_NAME = {
   finder: 'finder',
   history: 'history',
   historyOverview: 'history-overview',
+  historyLeaderboard: 'history-leaderboard',
+  historyItem: 'history-item',
   historyTest: 'history-test',
 } as const
 
@@ -30,6 +34,8 @@ const ROUTE_TITLE: Record<string, string> = {
   [ROUTE_NAME.finder]: 'Song finder',
   [ROUTE_NAME.history]: 'Load your listening history',
   [ROUTE_NAME.historyOverview]: 'Listening history',
+  [ROUTE_NAME.historyLeaderboard]: 'Top of the lot',
+  [ROUTE_NAME.historyItem]: 'One thing in detail',
   [ROUTE_NAME.historyTest]: 'Query console',
 }
 

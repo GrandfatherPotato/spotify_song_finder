@@ -1,8 +1,10 @@
 import { render, screen, waitFor } from '@testing-library/vue'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { hasStoredHistory, resetHistoryStorage, sharedHistoryDatabase } from '../history'
+import { clearHistoryStorage, hasStoredSnapshot, openHistoryDatabase } from '../history'
+import { STORAGE } from '../history/duckdb/client'
 import { HISTORY_QUERIES } from '../history/duckdb/queries'
+import { stubHistoryDatabase } from '../test-support/history'
 import HistoryView from './HistoryView.vue'
 
 const replace = vi.fn()
@@ -12,17 +14,17 @@ vi.mock('vue-router', () => ({
   RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
 }))
 vi.mock('../history', () => ({
-  sharedHistoryDatabase: vi.fn(),
-  resetHistoryStorage: vi.fn(),
-  hasStoredHistory: vi.fn(),
+  openHistoryDatabase: vi.fn(),
+  clearHistoryStorage: vi.fn(),
+  hasStoredSnapshot: vi.fn(),
 }))
 vi.mock('../history/opfs', () => ({ describeOpfsRoot: vi.fn().mockResolvedValue('empty') }))
 vi.mock('../history/export/source', () => ({
   noExportSource: () => ({ label: 'no export selected', listFiles: vi.fn() }),
 }))
 
-const sharedDatabaseMock = vi.mocked(sharedHistoryDatabase)
-const hasStoredHistoryMock = vi.mocked(hasStoredHistory)
+const sharedDatabaseMock = vi.mocked(openHistoryDatabase)
+const hasStoredHistoryMock = vi.mocked(hasStoredSnapshot)
 
 const TOTALS_ROWS = [{ plays: 222902, track_plays: 220544 }]
 const RESET_LABEL = 'Clear stored history'
@@ -34,14 +36,9 @@ function queryButtons(): HTMLElement[] {
 }
 
 function stubDatabase(query = vi.fn().mockResolvedValue(TOTALS_ROWS)) {
-  sharedDatabaseMock.mockResolvedValue({
-    storage: 'OPFS (persisted)',
-    origin: 'data/ (dev server)',
-    diagnostics: 'duckdb v1.5.4',
-    query,
-    runQuery: vi.fn(),
-    close: vi.fn(),
-  })
+  sharedDatabaseMock.mockResolvedValue(
+    stubHistoryDatabase({ storage: STORAGE.opfs, origin: 'data/ (dev server)', query }),
+  )
   return query
 }
 
@@ -91,14 +88,7 @@ describe('HistoryView', () => {
   it('reports import progress while it reads the export', async () => {
     sharedDatabaseMock.mockImplementation(async (_source, onProgress) => {
       onProgress({ message: 'Reading Streaming_History_Audio_2018.json', completed: 0, total: 24 })
-      return {
-        storage: 'OPFS (persisted)',
-        origin: 'data/ (dev server)',
-        diagnostics: 'duckdb v1.5.4',
-        query: vi.fn(),
-        runQuery: vi.fn(),
-        close: vi.fn(),
-      }
+      return stubHistoryDatabase({ storage: STORAGE.opfs, origin: 'data/ (dev server)' })
     })
 
     render(HistoryView)
@@ -111,7 +101,7 @@ describe('HistoryView', () => {
 
     render(HistoryView)
 
-    await waitFor(() => expect(queryButtons()).toHaveLength(3))
+    await waitFor(() => expect(queryButtons()).toHaveLength(Object.keys(HISTORY_QUERIES).length))
     expect(queryButtons().map((button) => button.textContent?.trim())).toEqual(
       Object.keys(HISTORY_QUERIES),
     )
@@ -144,7 +134,7 @@ describe('HistoryView', () => {
     render(HistoryView)
 
     await screen.findByRole('button', { name: 'totals' })
-    expect(sharedDatabaseMock).toHaveBeenCalledTimes(2)
+    expect(sharedDatabaseMock).toHaveBeenCalledOnce()
   })
 
   it('clears saved storage without starting another import', async () => {
@@ -156,7 +146,7 @@ describe('HistoryView', () => {
 
     await userEvent.click(screen.getByRole('button', { name: RESET_LABEL }))
 
-    expect(vi.mocked(resetHistoryStorage)).toHaveBeenCalledOnce()
+    expect(vi.mocked(clearHistoryStorage)).toHaveBeenCalledOnce()
     await waitFor(() => expect(screen.getByText('Stored history cleared.')).toBeTruthy())
     expect(sharedDatabaseMock).toHaveBeenCalledOnce()
     expect(replace).not.toHaveBeenCalled()

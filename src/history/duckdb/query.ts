@@ -8,11 +8,39 @@
  */
 import type { z } from 'zod'
 
-export interface NamedQuery<Row> {
+export interface NamedQuery<Row, Params extends readonly unknown[] = []> {
   sql: string
   row: z.ZodType<Row>
+  /** What the query console binds, since it runs every query without knowing any of their shapes. */
+  defaultParams?: Params
 }
 
-export function defineQuery<Row>(sql: string, row: z.ZodType<Row>): NamedQuery<Row> {
-  return { sql, row }
+export function defineQuery<Row, Params extends readonly unknown[] = []>(
+  sql: string,
+  row: z.ZodType<Row>,
+  defaultParams?: Params,
+): NamedQuery<Row, Params> {
+  return { sql, row, defaultParams }
+}
+
+/**
+ * A clause and the values it binds, together: in two parallel arrays, adding a
+ * filter would shift every later `?` and bind the right values to the wrong
+ * placeholders.
+ */
+export interface SqlFilter {
+  clause: string
+  params: readonly unknown[]
+}
+
+export interface ComposedWhere {
+  where: string
+  params: readonly unknown[]
+}
+
+export function composeWhere(base: string, filters: readonly SqlFilter[]): ComposedWhere {
+  return {
+    where: [base, ...filters.map((filter) => filter.clause)].join(' AND '),
+    params: filters.flatMap((filter) => [...filter.params]),
+  }
 }
