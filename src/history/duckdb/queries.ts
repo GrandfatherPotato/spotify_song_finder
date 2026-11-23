@@ -3,7 +3,9 @@
  */
 import { z } from 'zod'
 import { PLAY_KIND } from '../export/tables.ts'
-import { defineQuery } from './query.ts'
+import type { TimeRange } from '../range.ts'
+import { composeWhere, defineQuery } from './query.ts'
+import type { NamedQuery, SqlFilter } from './query.ts'
 
 /**
  * A play shorter than this is a skip, not a listen. Spotify's own royalty
@@ -157,11 +159,158 @@ export const INTEGRITY_QUERY = defineQuery(
   integrityRow,
 )
 
+export const LEADERBOARD_ENTITY = {
+  artist: 'artist',
+  song: 'song',
+  album: 'album',
+} as const
+
+export type LeaderboardEntity = (typeof LEADERBOARD_ENTITY)[keyof typeof LEADERBOARD_ENTITY]
+
+export const LEADERBOARD_SIZES = [3, 5, 10, 15, 25] as const
+
+export type LeaderboardSize = (typeof LEADERBOARD_SIZES)[number]
+
+export const DEFAULT_LEADERBOARD_SIZE: LeaderboardSize = 10
+
+const MAX_LEADERBOARD_SIZE = Math.max(...LEADERBOARD_SIZES)
+
+interface EntitySql {
+  join: string
+  key: string
+  name: string
+  subtitle: string
+  groupBy: string
+}
+
+const ENTITY_SQL: Record<LeaderboardEntity, EntitySql> = {
+  [LEADERBOARD_ENTITY.artist]: {
+    join: 'JOIN artists a USING (artist_id)',
+    key: 'a.artist_id',
+    name: 'a.name',
+    subtitle: 'CAST(NULL AS TEXT)',
+    groupBy: 'a.artist_id, a.name',
+  },
+  [LEADERBOARD_ENTITY.song]: {
+    join: 'JOIN tracks t USING (track_id) LEFT JOIN artists a ON a.artist_id = t.artist_id',
+    key: 't.track_id',
+    name: 't.name',
+    subtitle: 'a.name',
+    groupBy: 't.track_id, t.name, a.name',
+  },
+  [LEADERBOARD_ENTITY.album]: {
+    join:
+      'JOIN tracks t USING (track_id) JOIN albums al USING (album_id)' +
+      ' LEFT JOIN artists a ON a.artist_id = al.artist_id',
+    key: 'al.album_id',
+    name: 'al.name',
+    subtitle: 'a.name',
+    groupBy: 'al.album_id, al.name, a.name',
+  },
+}
+
+const BASE_WHERE = `p.kind = '${PLAY_KIND.track}' AND p.ms_played >= ${MIN_PLAY_MS}`
+
+const ORDER_CHAIN = 'count(*) DESC, sum(ms_played) DESC, name ASC, entity_id ASC'
+
+export function rangeFilters(range: TimeRange | null): SqlFilter[] {
+  if (range === null) return []
+  return [
+    { clause: 'p.ts >= CAST(? AS TIMESTAMP)', params: [range.start] },
+    { clause: 'p.ts < CAST(? AS TIMESTAMP)', params: [range.end] },
+  ]
+}
+
+function scopedCte(entity: EntitySql, where: string): string {
+  return `
+    WITH scoped AS (
+      SELECT
+        ${entity.key}      AS entity_id,
+        ${entity.name}     AS name,
+        ${entity.subtitle} AS subtitle,
+        p.ms_played,
+        p.ts
+      FROM plays p ${entity.join}
+      WHERE ${where}
+    )`
+}
+
+const leaderboardRow = z.object({
+  id: z.number(),
+  name: z.string().nullable(),
+  subtitle: z.string().nullable(),
+  plays: z.number(),
+  hours: z.number(),
+})
+
+export type LeaderboardRow = z.infer<typeof leaderboardRow>
+
+const trendRow = z.object({
+  month: z.string(),
+  id: z.number(),
+  hours: z.number(),
+})
+
+export type TrendRow = z.infer<typeof trendRow>
+
+export function leaderboardQuery(
+  entity: LeaderboardEntity,
+  range: TimeRange | null,
+): NamedQuery<LeaderboardRow, readonly unknown[]> {
+  const { where, params } = composeWhere(BASE_WHERE, rangeFilters(range))
+  return defineQuery(
+    `${scopedCte(ENTITY_SQL[entity], where)}
+    SELECT
+      entity_id                            AS id,
+      name,
+      subtitle,
+      count(*)                             AS plays,
+      round(sum(ms_played) / 3600000.0, 1) AS hours
+    FROM scoped
+    GROUP BY entity_id, name, subtitle
+    ORDER BY ${ORDER_CHAIN}
+    LIMIT ${MAX_LEADERBOARD_SIZE}`,
+    leaderboardRow,
+    params,
+  )
+}
+
+export function trendQuery(
+  entity: LeaderboardEntity,
+  range: TimeRange | null,
+): NamedQuery<TrendRow, readonly unknown[]> {
+  const { where, params } = composeWhere(BASE_WHERE, rangeFilters(range))
+  return defineQuery(
+    `${scopedCte(ENTITY_SQL[entity], where)},
+    leaders AS (
+      SELECT entity_id
+      FROM scoped
+      GROUP BY entity_id, name
+      QUALIFY row_number() OVER (ORDER BY ${ORDER_CHAIN}) <= ${MAX_LEADERBOARD_SIZE}
+    )
+    SELECT
+      strftime(date_trunc('month', ts), '%Y-%m-%d') AS month,
+      entity_id                                     AS id,
+      round(sum(ms_played) / 3600000.0, 2)          AS hours
+    FROM scoped JOIN leaders USING (entity_id)
+    GROUP BY 1, 2
+    ORDER BY 1, 2`,
+    trendRow,
+    params,
+  )
+}
+
 /** Named, typed and validated. The console page iterates these by name. */
 export const HISTORY_QUERIES = {
   totals: TOTALS_QUERY,
   topArtistsPerYear: TOP_ARTISTS_PER_YEAR_QUERY,
   integrity: INTEGRITY_QUERY,
+  topArtists: leaderboardQuery(LEADERBOARD_ENTITY.artist, null),
+  topSongs: leaderboardQuery(LEADERBOARD_ENTITY.song, null),
+  topAlbums: leaderboardQuery(LEADERBOARD_ENTITY.album, null),
+  artistTrend: trendQuery(LEADERBOARD_ENTITY.artist, null),
+  songTrend: trendQuery(LEADERBOARD_ENTITY.song, null),
+  albumTrend: trendQuery(LEADERBOARD_ENTITY.album, null),
 } as const
 
 /** Names of every check in the integrity report that came back non-zero. */

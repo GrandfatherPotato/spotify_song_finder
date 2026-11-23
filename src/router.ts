@@ -4,6 +4,7 @@ import { hasStoredTokens } from './spotify/tokens'
 import CallbackView from './views/CallbackView.vue'
 import FinderView from './views/FinderView.vue'
 import HistoryImportView from './views/HistoryImportView.vue'
+import HistoryLeaderboardView from './views/HistoryLeaderboardView.vue'
 import HistoryOverviewView from './views/HistoryOverviewView.vue'
 import HistoryView from './views/HistoryView.vue'
 import HomeView from './views/HomeView.vue'
@@ -27,6 +28,11 @@ export const router = createRouter({
       path: ROUTE_PATH.historyOverview,
       name: ROUTE_NAME.historyOverview,
       component: HistoryOverviewView,
+    },
+    {
+      path: ROUTE_PATH.historyLeaderboard,
+      name: ROUTE_NAME.historyLeaderboard,
+      component: HistoryLeaderboardView,
     },
     { path: ROUTE_PATH.historyTest, name: ROUTE_NAME.historyTest, component: HistoryView },
     { path: '/:pathMatch(.*)*', redirect: ROUTE_PATH.home },

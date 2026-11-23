@@ -6,7 +6,7 @@ import AppButton from '../components/common/AppButton.vue'
 import HistoryExportGuide from '../components/HistoryExportGuide.vue'
 import ProgressBar from '../components/common/ProgressBar.vue'
 import { isLocalEnvironment } from '../env'
-import { hasStoredHistory, sharedHistoryDatabase } from '../history'
+import { useHistoryStore } from '../stores/history'
 import { selectedExportSource } from '../history/export/selection'
 import { devDataSource } from '../history/export/source'
 import type { ExportSource } from '../history/export/source'
@@ -35,6 +35,7 @@ interface Progress {
 const UNCOUNTED: Progress = { label: 'Checking the files…', completed: 0, total: 0 }
 
 const router = useRouter()
+const history = useHistoryStore()
 
 const status = ref<Status>(STATUS.checking)
 const progress = ref<Progress>(UNCOUNTED)
@@ -43,7 +44,7 @@ const problem = ref('')
 const localDataAllowed = isLocalEnvironment()
 
 onMounted(async () => {
-  if (await hasStoredHistory()) {
+  if (await history.isStored()) {
     await router.replace(ROUTE_PATH.historyOverview)
     return
   }
@@ -56,7 +57,7 @@ async function importFrom(resolveSource: () => Promise<ExportSource>): Promise<v
   progress.value = UNCOUNTED
   try {
     const source = await resolveSource()
-    await sharedHistoryDatabase(source, (step) => {
+    await history.open(source, (step) => {
       // `completed` is the index of the file being read, not the count finished.
       progress.value = { label: step.message, completed: step.completed + 1, total: step.total }
     })

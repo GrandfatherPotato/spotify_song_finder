@@ -1,8 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/vue'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { hasStoredHistory, resetHistoryStorage, sharedHistoryDatabase } from '../history'
+import { clearHistoryStorage, hasStoredSnapshot, openHistoryDatabase } from '../history'
 import { TOTALS_QUERY } from '../history/duckdb/queries'
+import { stubHistoryDatabase } from '../test-support/history'
 import HistoryOverviewView from './HistoryOverviewView.vue'
 
 const replace = vi.fn()
@@ -12,16 +13,16 @@ vi.mock('vue-router', () => ({
   RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
 }))
 vi.mock('../history', () => ({
-  hasStoredHistory: vi.fn(),
-  resetHistoryStorage: vi.fn(),
-  sharedHistoryDatabase: vi.fn(),
+  hasStoredSnapshot: vi.fn(),
+  clearHistoryStorage: vi.fn(),
+  openHistoryDatabase: vi.fn(),
 }))
 vi.mock('../history/export/source', () => ({
   noExportSource: () => ({ label: 'no export selected', listFiles: vi.fn() }),
 }))
 
-const hasStoredHistoryMock = vi.mocked(hasStoredHistory)
-const sharedDatabaseMock = vi.mocked(sharedHistoryDatabase)
+const hasStoredHistoryMock = vi.mocked(hasStoredSnapshot)
+const sharedDatabaseMock = vi.mocked(openHistoryDatabase)
 
 const TOTALS_ROWS = [
   {
@@ -47,14 +48,7 @@ function stubQueries(totals = TOTALS_ROWS, quality = QUALITY_ROWS) {
 }
 
 function stubDatabase(query = stubQueries()) {
-  sharedDatabaseMock.mockResolvedValue({
-    storage: 'OPFS (persisted)',
-    origin: 'My Export',
-    diagnostics: 'duckdb v1.5.4',
-    query,
-    runQuery: vi.fn(),
-    close: vi.fn(),
-  })
+  sharedDatabaseMock.mockResolvedValue(stubHistoryDatabase({ query }))
   return query
 }
 
@@ -188,7 +182,7 @@ describe('HistoryOverviewView', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Clear storage' }))
 
-    expect(vi.mocked(resetHistoryStorage)).toHaveBeenCalledOnce()
+    expect(vi.mocked(clearHistoryStorage)).toHaveBeenCalledOnce()
     await waitFor(() =>
       expect(replace).toHaveBeenCalledWith({
         path: '/',

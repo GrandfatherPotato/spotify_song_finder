@@ -1,45 +1,42 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import BackLink from '../components/common/BackLink.vue'
 import AppButton, { BUTTON_VARIANT } from '../components/common/AppButton.vue'
+import LinkCard from '../components/common/LinkCard.vue'
+import type { LinkCardProps } from '../components/common/LinkCard.vue'
 import SkeletonBlock from '../components/common/SkeletonBlock.vue'
 import StatTile from '../components/common/StatTile.vue'
 import type { StatTileProps } from '../components/common/StatTile.vue'
 import StatTileSkeleton from '../components/common/StatTileSkeleton.vue'
 import Tooltip, { TOOLTIP_PLACEMENT } from '../components/common/Tooltip.vue'
-import { hasStoredHistory, resetHistoryStorage, sharedHistoryDatabase } from '../history'
-import { IMPORT_QUALITY_QUERY, MIN_PLAY_MS, TOTALS_QUERY } from '../history/duckdb/queries'
+import { HISTORY_STATUS, useHistoryDatabase } from '../composables/useHistoryDatabase'
+import { ALBUM_ARTIST_CAVEAT, MIN_PLAY_SECONDS } from '../history/caveats'
+import { useHistoryStore } from '../stores/history'
+import { IMPORT_QUALITY_QUERY, TOTALS_QUERY } from '../history/duckdb/queries'
 import type { ImportQuality } from '../history/duckdb/queries'
-import { noExportSource } from '../history/export/source'
 import { yearsSpanned } from '../history/summary'
 import type { HistorySummary } from '../history/summary'
 import { NOTICE, NOTICE_PARAM } from '../notices'
 import { ROUTE_PATH } from '../routes'
 
-const STATUS = {
-  loading: 'loading',
-  ready: 'ready',
-  error: 'error',
-} as const
-
-type Status = (typeof STATUS)[keyof typeof STATUS]
-
 const HOURS_PER_DAY = 24
-const MS_PER_SECOND = 1000
 
 /** Tiles per row while loading; the same shape the real rows settle into. */
 const SKELETON_ROWS = [3, 4]
 
-/** Derived, not typed as copy, so the wording cannot drift from the floor. */
-const MIN_PLAY_SECONDS = MIN_PLAY_MS / MS_PER_SECOND
-
 const router = useRouter()
+const history = useHistoryStore()
 
-const status = ref<Status>(STATUS.loading)
-const message = ref('Opening your history…')
 const summary = ref<HistorySummary | null>(null)
 const quality = ref<ImportQuality | null>(null)
+
+const { status, message } = useHistoryDatabase(async (database) => {
+  const [totals] = await database.query(TOTALS_QUERY)
+  summary.value = totals ?? null
+  const [report] = await database.query(IMPORT_QUALITY_QUERY)
+  quality.value = report ?? null
+})
 
 const counts = new Intl.NumberFormat('en-GB')
 const dates = new Intl.DateTimeFormat('en-GB', {
@@ -75,11 +72,21 @@ const days = computed(() =>
 
 type Tile = StatTileProps & { key: string }
 
+const EXPLORE_CARDS: LinkCardProps[] = [
+  {
+    to: ROUTE_PATH.historyLeaderboard,
+    title: 'Top of the lot',
+    body: 'Your most played artists, songs and albums — over all of it, a single year, or any stretch you pick, with the hours behind each one.',
+  },
+  {
+    to: ROUTE_PATH.historyTest,
+    title: 'Run the raw queries',
+    body: "The query console the rest of this is built on — totals, top artists per year and the import's integrity checks, straight out of DuckDB.",
+  },
+]
+
 const CLEAR_STORAGE_WARNING =
   'Deletes the imported history from this browser and takes you back to the start. You will need your export file again to rebuild it.'
-
-const ALBUM_ARTIST_CAVEAT =
-  'Spotify records the album artist, not the track artist, so a featured artist’s plays are credited to the primary artist.'
 
 /** Two rows: how much was recorded, then what it was made of. */
 const tileRows = computed(() => {
@@ -145,29 +152,9 @@ function libraryTiles(totals: HistorySummary): Tile[] {
 }
 
 async function clearStorage(): Promise<void> {
-  await resetHistoryStorage()
+  await history.reset()
   await router.replace({ path: ROUTE_PATH.home, query: { [NOTICE_PARAM]: NOTICE.noHistory } })
 }
-
-onMounted(async () => {
-  if (!(await hasStoredHistory())) {
-    await router.replace({ path: ROUTE_PATH.history, query: { [NOTICE_PARAM]: NOTICE.noHistory } })
-    return
-  }
-  try {
-    const database = await sharedHistoryDatabase(noExportSource(), (step) => {
-      message.value = `${step.message} (${step.completed + 1}/${step.total})`
-    })
-    const [totals] = await database.query(TOTALS_QUERY)
-    summary.value = totals ?? null
-    const [report] = await database.query(IMPORT_QUALITY_QUERY)
-    quality.value = report ?? null
-    status.value = STATUS.ready
-  } catch (error) {
-    message.value = error instanceof Error ? error.message : String(error)
-    status.value = STATUS.error
-  }
-})
 </script>
 
 <template>
@@ -190,7 +177,7 @@ onMounted(async () => {
       </Tooltip>
     </header>
 
-    <template v-if="status === STATUS.loading">
+    <template v-if="status === HISTORY_STATUS.loading">
       <section class="hero">
         <SkeletonBlock width="min(620px, 72%)" height="clamp(34px, 6vw, 64px)" />
         <SkeletonBlock class="hero__skeleton-lede" width="min(460px, 60%)" height="18px" />
@@ -213,7 +200,7 @@ onMounted(async () => {
       <p class="state" role="status">{{ message }}</p>
     </template>
 
-    <p v-else-if="status === STATUS.error" class="state state--error" role="alert">
+    <p v-else-if="status === HISTORY_STATUS.error" class="state state--error" role="alert">
       {{ message }}
     </p>
 
@@ -269,20 +256,10 @@ onMounted(async () => {
 
       <section class="explore">
         <h2 class="explore__title">Explore it</h2>
-        <p class="explore__lede">More ways to read this are on the way. For now:</p>
+        <p class="explore__lede">Ways to read what is in here:</p>
 
         <ul class="explore__list">
-          <li class="card">
-            <h3 class="card__title">
-              <RouterLink class="card__link" :to="ROUTE_PATH.historyTest">
-                Run the raw queries
-              </RouterLink>
-            </h3>
-            <p class="card__body">
-              The query console the rest of this is built on — totals, top artists per year and the
-              import's integrity checks, straight out of DuckDB.
-            </p>
-          </li>
+          <LinkCard v-for="card in EXPLORE_CARDS" :key="card.to" v-bind="card" />
         </ul>
       </section>
     </template>
@@ -480,53 +457,5 @@ onMounted(async () => {
   margin: 24px 0 0;
   padding: 0;
   list-style: none;
-}
-
-.card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 24px;
-  border: 1px solid var(--hairline);
-  border-radius: 3px;
-  background: rgba(232, 236, 230, 0.02);
-}
-
-.card:hover,
-.card:focus-within {
-  border-color: var(--green);
-  background: rgba(30, 215, 96, 0.06);
-}
-
-.card__title {
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--fg);
-  margin: 0;
-}
-
-.card__link {
-  color: var(--fg);
-  text-decoration: none;
-}
-
-/* Stretches the anchor over the whole card so the entire tile is clickable. */
-.card__link::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-}
-
-.card__link:focus-visible {
-  outline: 2px solid var(--green);
-  outline-offset: 3px;
-}
-
-.card__body {
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--fg-dim);
 }
 </style>
