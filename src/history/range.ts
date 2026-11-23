@@ -53,3 +53,36 @@ export function inclusiveEnd(range: TimeRange): string {
 export function rangeKey(range: TimeRange | null): string {
   return range === null ? 'all-time' : `${range.start}:${range.end}`
 }
+
+export const BUCKET = {
+  day: 'day',
+  week: 'week',
+  month: 'month',
+} as const
+
+export type Bucket = (typeof BUCKET)[keyof typeof BUCKET]
+
+const DAYS_PER_WEEK = 7
+
+/** Roughly a point every two pixels on a wide chart. */
+export const DEFAULT_POINT_BUDGET = 600
+
+export function daysBetween(first: string, last: string): number | null {
+  const from = utcDate(first)
+  const to = utcDate(last)
+  if (from === null || to === null) return null
+  return Math.round((to - from) / MS_PER_DAY)
+}
+
+/**
+ * The finest bucket whose point count still fits the budget, so a span is only
+ * coarsened when it has to be. A nine-year export lands on weeks, not months,
+ * where a fortnight of heavy listening is still its own peak.
+ */
+export function bucketForSpan(first: string, last: string, budget = DEFAULT_POINT_BUDGET): Bucket {
+  const days = daysBetween(first, last)
+  if (days === null) return BUCKET.month
+  if (days <= budget) return BUCKET.day
+  if (days / DAYS_PER_WEEK <= budget) return BUCKET.week
+  return BUCKET.month
+}

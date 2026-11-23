@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { customRange, rangeKey, yearRange, yearsCovered } from './range'
+import {
+  BUCKET,
+  bucketForSpan,
+  customRange,
+  daysBetween,
+  inclusiveEnd,
+  rangeKey,
+  yearRange,
+  yearsCovered,
+} from './range'
 
 describe('yearRange', () => {
   it('runs from the first day of the year to the first day of the next, exclusive', () => {
@@ -59,6 +68,44 @@ describe('customRange', () => {
     expect(customRange('', '2024-03-01')).toBeNull()
     expect(customRange('2024-03-01', '')).toBeNull()
     expect(customRange('2024-02-30', '2024-03-01')).toBeNull()
+  })
+})
+
+describe('bucketForSpan', () => {
+  it('goes daily for a single year, which fits the budget comfortably', () => {
+    expect(bucketForSpan('2024-01-01', '2025-01-01')).toBe(BUCKET.day)
+  })
+
+  it('goes weekly for a real nine-year export rather than collapsing to months', () => {
+    expect(bucketForSpan('2018-03-05', '2026-11-14')).toBe(BUCKET.week)
+  })
+
+  it('falls back to months only once weeks would overrun the budget', () => {
+    expect(bucketForSpan('2000-01-01', '2026-01-01')).toBe(BUCKET.month)
+  })
+
+  it('coarsens as the budget shrinks, for a chart carrying many series', () => {
+    expect(bucketForSpan('2018-03-05', '2026-11-14', 100)).toBe(BUCKET.month)
+  })
+
+  it('falls back to months when the span is not readable', () => {
+    expect(bucketForSpan('', '')).toBe(BUCKET.month)
+  })
+})
+
+describe('daysBetween', () => {
+  it('counts whole days across a leap year', () => {
+    expect(daysBetween('2024-02-28', '2024-03-01')).toBe(2)
+  })
+
+  it('refuses a span it cannot read', () => {
+    expect(daysBetween('2024-02-30', '2024-03-01')).toBeNull()
+  })
+})
+
+describe('inclusiveEnd', () => {
+  it('turns the exclusive query bound back into the day the user picked', () => {
+    expect(inclusiveEnd({ start: '2024-03-01', end: '2024-04-01' })).toBe('2024-03-31')
   })
 })
 

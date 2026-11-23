@@ -46,6 +46,16 @@ watch([preset, from, to], () => {
   if (picked === undefined) return
   range.value = picked
 })
+
+// Follows a range cleared from outside, such as moving to another item. The
+// equality guard is what stops this trading updates with the watcher above.
+watch(range, (value) => {
+  const next = presetFor(value)
+  if (next === preset.value) return
+  preset.value = next
+  from.value = value?.start ?? ''
+  to.value = value === null ? '' : inclusiveEnd(value)
+})
 </script>
 
 <template>

@@ -1,12 +1,13 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest'
 import { UNNAMED } from '../history/labels'
-import { monthSpine, seriesColours, trendOption, trendSeries } from './trendOption'
+import { BUCKET } from '../history/range'
+import { bucketSpine, seriesColours, trendOption, trendSeries } from './trendOption'
 
 const ROWS = [
-  { month: '2024-01-01', id: 1, hours: 4 },
-  { month: '2024-03-01', id: 1, hours: 6 },
-  { month: '2024-02-01', id: 2, hours: 2 },
+  { bucket: '2024-01-01', id: 1, hours: 4 },
+  { bucket: '2024-03-01', id: 1, hours: 6 },
+  { bucket: '2024-02-01', id: 2, hours: 2 },
 ]
 
 const NAMES = [
@@ -14,28 +15,55 @@ const NAMES = [
   { id: 2, label: 'Bonobo' },
 ]
 
-describe('monthSpine', () => {
+describe('bucketSpine', () => {
+  it('steps a week at a time when the buckets are weekly', () => {
+    expect(
+      bucketSpine(
+        [
+          { bucket: '2024-01-01', id: 1, hours: 1 },
+          { bucket: '2024-01-22', id: 1, hours: 1 },
+        ],
+        BUCKET.week,
+      ),
+    ).toEqual(['2024-01-01', '2024-01-08', '2024-01-15', '2024-01-22'])
+  })
+
+  it('steps a day at a time when the buckets are daily, across a month end', () => {
+    expect(
+      bucketSpine(
+        [
+          { bucket: '2024-02-28', id: 1, hours: 1 },
+          { bucket: '2024-03-01', id: 1, hours: 1 },
+        ],
+        BUCKET.day,
+      ),
+    ).toEqual(['2024-02-28', '2024-02-29', '2024-03-01'])
+  })
+
   it('fills the months between the first and last the result mentions', () => {
-    expect(monthSpine(ROWS)).toEqual(['2024-01-01', '2024-02-01', '2024-03-01'])
+    expect(bucketSpine(ROWS, BUCKET.month)).toEqual(['2024-01-01', '2024-02-01', '2024-03-01'])
   })
 
   it('crosses a year boundary without skipping December or January', () => {
     expect(
-      monthSpine([
-        { month: '2023-11-01', id: 1, hours: 1 },
-        { month: '2024-02-01', id: 1, hours: 1 },
-      ]),
+      bucketSpine(
+        [
+          { bucket: '2023-11-01', id: 1, hours: 1 },
+          { bucket: '2024-02-01', id: 1, hours: 1 },
+        ],
+        BUCKET.month,
+      ),
     ).toEqual(['2023-11-01', '2023-12-01', '2024-01-01', '2024-02-01'])
   })
 
   it('has nothing to span when there are no rows', () => {
-    expect(monthSpine([])).toEqual([])
+    expect(bucketSpine([], BUCKET.month)).toEqual([])
   })
 })
 
 describe('trendSeries', () => {
   it('gives a month with no plays a zero rather than letting the line skip it', () => {
-    const [radiohead] = trendSeries(ROWS, NAMES)
+    const [radiohead] = trendSeries(ROWS, NAMES, BUCKET.month)
 
     expect(radiohead.name).toBe('Radiohead')
     expect(radiohead.points).toEqual([
@@ -46,7 +74,7 @@ describe('trendSeries', () => {
   })
 
   it('puts every series on the same months, so they can be read against each other', () => {
-    const series = trendSeries(ROWS, NAMES)
+    const series = trendSeries(ROWS, NAMES, BUCKET.month)
 
     expect(series).toHaveLength(2)
     expect(series[0].points.map(([month]) => month)).toEqual(
@@ -56,35 +84,44 @@ describe('trendSeries', () => {
 
   it('draws the series in the order the table ranks them', () => {
     expect(
-      trendSeries(ROWS, [
-        { id: 2, label: 'Bonobo' },
-        { id: 1, label: 'Radiohead' },
-      ]).map((line) => line.name),
+      trendSeries(
+        ROWS,
+        [
+          { id: 2, label: 'Bonobo' },
+          { id: 1, label: 'Radiohead' },
+        ],
+        BUCKET.month,
+      ).map((line) => line.name),
     ).toEqual(['Bonobo', 'Radiohead'])
   })
 
   it('draws only what was asked for, so the size control governs the chart too', () => {
-    expect(trendSeries(ROWS, [{ id: 1, label: 'Radiohead' }])).toHaveLength(1)
+    expect(trendSeries(ROWS, [{ id: 1, label: 'Radiohead' }], BUCKET.month)).toHaveLength(1)
   })
 
   it('keeps two entities with the same name apart rather than summing them', () => {
     const sameName = [
-      { month: '2024-01-01', id: 7, hours: 3 },
-      { month: '2024-01-01', id: 8, hours: 5 },
+      { bucket: '2024-01-01', id: 7, hours: 3 },
+      { bucket: '2024-01-01', id: 8, hours: 5 },
     ]
 
-    const series = trendSeries(sameName, [
-      { id: 7, label: 'Greatest Hits — A' },
-      { id: 8, label: 'Greatest Hits — B' },
-    ])
+    const series = trendSeries(
+      sameName,
+      [
+        { id: 7, label: 'Greatest Hits — A' },
+        { id: 8, label: 'Greatest Hits — B' },
+      ],
+      BUCKET.month,
+    )
 
     expect(series.map((line) => line.points[0][1])).toEqual([3, 5])
   })
 
   it('labels an unnamed entity from the caller rather than inventing one', () => {
     const [series] = trendSeries(
-      [{ month: '2024-01-01', id: 9, hours: 3 }],
+      [{ bucket: '2024-01-01', id: 9, hours: 3 }],
       [{ id: 9, label: UNNAMED }],
+      BUCKET.month,
     )
 
     expect(series.name).toBe(UNNAMED)
@@ -112,7 +149,7 @@ describe('seriesColours', () => {
 
 describe('trendOption', () => {
   it('draws one unsmoothed line per series on a time axis', () => {
-    const option = trendOption(ROWS, NAMES)
+    const option = trendOption(ROWS, NAMES, BUCKET.month)
 
     expect(option.xAxis).toMatchObject({ type: 'time' })
     expect(option.series).toHaveLength(2)
@@ -122,20 +159,20 @@ describe('trendOption', () => {
   })
 
   it('redraws a legend toggle fast enough to read as a response rather than a hang', () => {
-    const option = trendOption(ROWS, NAMES)
+    const option = trendOption(ROWS, NAMES, BUCKET.month)
 
     expect(option.animationDuration).toBeLessThanOrEqual(500)
     expect(option.animationDurationUpdate).toBeLessThanOrEqual(500)
   })
 
   it('keeps animating past the 2,000-point default, where ECharts gives up silently', () => {
-    expect(trendOption(ROWS, NAMES).animationThreshold).toBeGreaterThan(2000)
+    expect(trendOption(ROWS, NAMES, BUCKET.month).animationThreshold).toBeGreaterThan(2000)
   })
 
   it('produces an option ECharts can render without a DOM', async () => {
     const echarts = await import('echarts')
     const chart = echarts.init(null, null, { renderer: 'svg', ssr: true, width: 400, height: 300 })
-    chart.setOption(trendOption(ROWS, NAMES))
+    chart.setOption(trendOption(ROWS, NAMES, BUCKET.month))
 
     const svg = chart.renderToSVGString()
 

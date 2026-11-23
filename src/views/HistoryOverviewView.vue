@@ -12,6 +12,7 @@ import StatTileSkeleton from '../components/common/StatTileSkeleton.vue'
 import Tooltip, { TOOLTIP_PLACEMENT } from '../components/common/Tooltip.vue'
 import { HISTORY_STATUS, useHistoryDatabase } from '../composables/useHistoryDatabase'
 import { ALBUM_ARTIST_CAVEAT, MIN_PLAY_SECONDS } from '../history/caveats'
+import { formatCount, formatDate } from '../history/format'
 import { useHistoryStore } from '../stores/history'
 import { IMPORT_QUALITY_QUERY, TOTALS_QUERY } from '../history/duckdb/queries'
 import type { ImportQuality } from '../history/duckdb/queries'
@@ -38,25 +39,6 @@ const { status, message } = useHistoryDatabase(async (database) => {
   quality.value = report ?? null
 })
 
-const counts = new Intl.NumberFormat('en-GB')
-const dates = new Intl.DateTimeFormat('en-GB', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-})
-
-function formatCount(value: number): string {
-  return counts.format(Math.round(value))
-}
-
-/** The dates arrive as plain `YYYY-MM-DD`; pinning to UTC stops a westward
-    timezone rendering them a day early. */
-function formatDate(iso: string): string {
-  const parsed = Date.parse(`${iso}T00:00:00Z`)
-  return Number.isNaN(parsed) ? '—' : dates.format(parsed)
-}
-
 const span = computed(() => (summary.value === null ? 0 : yearsSpanned(summary.value)))
 
 const spanned = computed(() => `${span.value} ${span.value === 1 ? 'year' : 'years'}`)
@@ -77,6 +59,11 @@ const EXPLORE_CARDS: LinkCardProps[] = [
     to: ROUTE_PATH.historyLeaderboard,
     title: 'Top of the lot',
     body: 'Your most played artists, songs and albums — over all of it, a single year, or any stretch you pick, with the hours behind each one.',
+  },
+  {
+    to: ROUTE_PATH.historyItem,
+    title: 'One thing in detail',
+    body: 'Pick any artist, song or album and follow it through the years — when you found it, when you wore it out, and which of its songs you actually played.',
   },
   {
     to: ROUTE_PATH.historyTest,

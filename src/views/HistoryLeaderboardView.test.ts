@@ -9,7 +9,16 @@ const replace = vi.fn()
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ replace }),
-  RouterLink: { props: ['to'], template: '<a :href="to"><slot /></a>' },
+  RouterLink: {
+    props: ['to'],
+    template: '<a :href="href"><slot /></a>',
+    computed: {
+      href(this: { to: string | { path: string; query: Record<string, string> } }) {
+        if (typeof this.to === 'string') return this.to
+        return `${this.to.path}?${new URLSearchParams(this.to.query).toString()}`
+      },
+    },
+  },
 }))
 vi.mock('../history', () => ({
   hasStoredSnapshot: vi.fn(),
@@ -33,12 +42,18 @@ const openMock = vi.mocked(openHistoryDatabase)
 const TOTALS = [{ firstPlay: '2022-03-05', lastPlay: '2024-06-01' }]
 
 const ARTISTS = [
-  { id: 1, name: 'Radiohead', subtitle: null, plays: 1284, hours: 87.2 },
-  { id: 2, name: 'Bonobo', subtitle: null, plays: 976, hours: 71.9 },
-  { id: 3, name: 'Burial', subtitle: null, plays: 512, hours: 38.8 },
+  { id: 1, name: 'Radiohead', subtitle: null, uri: null, plays: 1284, hours: 87.2 },
+  { id: 2, name: 'Bonobo', subtitle: null, uri: null, plays: 976, hours: 71.9 },
+  { id: 3, name: 'Burial', subtitle: null, uri: null, plays: 512, hours: 38.8 },
 ]
 
-const ALBUMS = [{ id: 10, name: 'Kid A', subtitle: 'Radiohead', plays: 410, hours: 31.4 }]
+const ALBUMS = [
+  { id: 10, name: 'Kid A', subtitle: 'Radiohead', uri: null, plays: 410, hours: 31.4 },
+]
+
+const SONGS = [
+  { id: 20, name: 'Creep', subtitle: 'Radiohead', uri: 'spotify:track:abc', plays: 300, hours: 20 },
+]
 
 const TREND = [
   { month: '2024-01-01', id: 1, hours: 4 },
@@ -138,6 +153,29 @@ describe('HistoryLeaderboardView', () => {
     await userEvent.selectOptions(screen.getByLabelText('How many'), '3')
 
     expect(screen.getByTestId('trend').textContent).toBe('2 points, Radiohead,Bonobo,Burial')
+  })
+
+  it('links each artist row to that artist on the detail page', async () => {
+    stubDatabase(ARTISTS)
+
+    render(HistoryLeaderboardView)
+
+    const link = await screen.findByRole('link', { name: 'Radiohead' })
+
+    expect(link.getAttribute('href')).toBe('/history/item?type=artist&name=Radiohead')
+  })
+
+  it('links a song row by its URI, not by the name it is displayed under', async () => {
+    stubDatabase(ARTISTS, SONGS)
+
+    render(HistoryLeaderboardView)
+    await screen.findByText('Radiohead')
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Songs' }))
+
+    const link = await screen.findByRole('link', { name: 'Creep' })
+
+    expect(link.getAttribute('href')).toBe('/history/item?type=song&uri=spotify%3Atrack%3Aabc')
   })
 
   it('says so plainly when nothing in the range counted as a listen', async () => {

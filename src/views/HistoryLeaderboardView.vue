@@ -44,6 +44,8 @@ const years = ref<number[]>([])
 const { status, message } = useHistoryDatabase(async (database) => {
   const [totals] = await database.query(TOTALS_QUERY)
   years.value = totals === undefined ? [] : yearsCovered(totals.firstPlay, totals.lastPlay)
+  leaderboard.coverage =
+    totals === undefined ? null : { start: totals.firstPlay, end: totals.lastPlay }
   await leaderboard.load()
 })
 
@@ -135,11 +137,19 @@ watch(
         <p class="state state--busy" role="status">{{ refreshing ? 'Counting the plays…' : '' }}</p>
 
         <div class="results" :class="{ 'results--busy': refreshing }" :aria-busy="refreshing">
-          <HistoryLeaderboardTable :rows="leaderboard.ranked" :show-subtitle="showsSubtitle" />
+          <HistoryLeaderboardTable
+            :rows="leaderboard.ranked"
+            :entity="leaderboard.entity"
+            :show-subtitle="showsSubtitle"
+          />
 
           <section class="trend">
             <h2 class="trend__title">Hours over time — top {{ leaderboard.ranked.length }}</h2>
-            <HistoryTrendChart :rows="leaderboard.charted" :series="chartedSeries" />
+            <HistoryTrendChart
+              :rows="leaderboard.charted"
+              :series="chartedSeries"
+              :bucket="leaderboard.bucket"
+            />
           </section>
         </div>
       </template>

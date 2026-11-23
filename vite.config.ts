@@ -2,8 +2,8 @@ import { existsSync, readdirSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import vue from '@vitejs/plugin-vue'
 import { config as loadDotenv } from 'dotenv'
-import { defineConfig } from 'vite'
-import type { Plugin } from 'vite'
+import { createLogger, defineConfig } from 'vite'
+import type { Logger, Plugin } from 'vite'
 import {
   EXPORT_FILE_PATTERN,
   HISTORY_DATA_DIR,
@@ -66,6 +66,24 @@ function historyManifestPlugin(): Plugin {
   }
 }
 
+const SOURCEMAP_OUTSIDE_PACKAGE = 'points to a source file outside its package'
+
+/**
+ * duckdb-wasm's prebuilt workers carry sourcemaps pointing at `@duckdb/apache-arrow`
+ * sources in a sibling package, which Vite warns about every time devtools fetch the
+ * map — once per worker spawned by the history page. Nothing in this repo can fix a
+ * dependency's published sourcemap, so the warning is noise only.
+ */
+function quietSourcemapLogger(): Logger {
+  const logger = createLogger()
+  const warnOnce = logger.warnOnce.bind(logger)
+  logger.warnOnce = (message, options) => {
+    if (message.includes(SOURCEMAP_OUTSIDE_PACKAGE)) return
+    warnOnce(message, options)
+  }
+  return logger
+}
+
 export default defineConfig(({ command }) => {
   // Validate before the bundle is produced: a build with no client ID is a
   // defect, while a dev server without one is a state the app renders for.
@@ -74,6 +92,7 @@ export default defineConfig(({ command }) => {
 
   return {
     plugins: [vue(), historyManifestPlugin()],
+    customLogger: quietSourcemapLogger(),
     // duckdb-wasm ships its own workers and wasm; prebundling mangles them.
     optimizeDeps: { exclude: ['@duckdb/duckdb-wasm'] },
     server: {

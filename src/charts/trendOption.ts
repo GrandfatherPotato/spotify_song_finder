@@ -6,6 +6,10 @@ import type {
   TooltipComponentOption,
 } from 'echarts/components'
 import type { TrendRow } from '../history/duckdb/queries'
+import { formatHours } from '../history/format'
+import { BUCKET } from '../history/range'
+import type { Bucket } from '../history/range'
+import { tooltipFormatter } from './tooltip'
 
 export type TrendChartOption = ComposeOption<
   LineSeriesOption | GridComponentOption | LegendComponentOption | TooltipComponentOption
@@ -26,25 +30,26 @@ export function seriesColours(count: number): string[] {
 const INK = '#8b9186'
 const HAIRLINE = 'rgba(232, 236, 230, 0.1)'
 
-function nextMonth(iso: string): string {
+function nextBucket(iso: string, bucket: Bucket): string {
   const date = new Date(`${iso}T00:00:00Z`)
-  date.setUTCMonth(date.getUTCMonth() + 1)
+  if (bucket === BUCKET.month) date.setUTCMonth(date.getUTCMonth() + 1)
+  else date.setUTCDate(date.getUTCDate() + (bucket === BUCKET.week ? 7 : 1))
   return date.toISOString().slice(0, 10)
 }
 
 /**
- * Every month between the first and last the result mentions. A month a song
+ * Every bucket between the first and last the result mentions. A week a song
  * was not played is a real zero rather than missing data — the export covers
  * the whole span — and without the spine the line would slope straight across
  * the silence as though it never happened.
  */
-export function monthSpine(rows: readonly TrendRow[]): string[] {
-  const months = rows.map((row) => row.month).sort()
-  const first = months.at(0)
-  const last = months.at(-1)
+export function bucketSpine(rows: readonly TrendRow[], bucket: Bucket): string[] {
+  const buckets = rows.map((row) => row.bucket).sort()
+  const first = buckets.at(0)
+  const last = buckets.at(-1)
   if (first === undefined || last === undefined) return []
   const spine: string[] = []
-  for (let month = first; month <= last; month = nextMonth(month)) spine.push(month)
+  for (let at = first; at <= last; at = nextBucket(at, bucket)) spine.push(at)
   return spine
 }
 
@@ -62,12 +67,13 @@ export interface TrendSeriesRef {
 export function trendSeries(
   rows: readonly TrendRow[],
   refs: readonly TrendSeriesRef[],
+  bucket: Bucket,
 ): TrendSeries[] {
-  const spine = monthSpine(rows)
+  const spine = bucketSpine(rows, bucket)
   const hoursById = new Map<number, Map<string, number>>()
   for (const row of rows) {
     const hours = hoursById.get(row.id) ?? new Map<string, number>()
-    hours.set(row.month, (hours.get(row.month) ?? 0) + row.hours)
+    hours.set(row.bucket, (hours.get(row.bucket) ?? 0) + row.hours)
     hoursById.set(row.id, hours)
   }
   return refs.flatMap(({ id, label }) => {
@@ -76,7 +82,7 @@ export function trendSeries(
     return [
       {
         name: label,
-        points: spine.map((month): [string, number] => [month, hours.get(month) ?? 0]),
+        points: spine.map((at): [string, number] => [at, hours.get(at) ?? 0]),
       },
     ]
   })
@@ -85,8 +91,9 @@ export function trendSeries(
 export function trendOption(
   rows: readonly TrendRow[],
   refs: readonly TrendSeriesRef[],
+  bucket: Bucket,
 ): TrendChartOption {
-  const series = trendSeries(rows, refs)
+  const series = trendSeries(rows, refs, bucket)
   return {
     color: seriesColours(series.length),
     // ECharts defaults to a second of `cubicOut`, which barely moves for its
@@ -99,7 +106,11 @@ export function trendOption(
     animationEasingUpdate: 'cubicOut',
     animationThreshold: 8000,
     grid: { left: 48, right: 16, top: 48, bottom: 28, containLabel: true },
-    tooltip: { trigger: 'axis', valueFormatter: (value) => `${String(value)} h` },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'line' },
+      formatter: tooltipFormatter(bucket, (value) => `${formatHours(value)} h`),
+    },
     legend: { top: 0, textStyle: { color: INK }, inactiveColor: 'rgba(232, 236, 230, 0.3)' },
     xAxis: {
       type: 'time',
@@ -119,6 +130,7 @@ export function trendOption(
       data: line.points,
       showSymbol: false,
       smooth: false,
+      sampling: 'lttb',
       // Hovering a legend entry otherwise fades every other line to nothing,
       // which reads as the chart emptying itself.
       legendHoverLink: false,

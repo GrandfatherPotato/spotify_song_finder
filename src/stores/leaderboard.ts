@@ -13,8 +13,8 @@ import type {
   TrendRow,
 } from '../history/duckdb/queries'
 import type { HistoryDatabase } from '../history'
-import { rangeKey } from '../history/range'
-import type { TimeRange } from '../history/range'
+import { BUCKET, bucketForSpan, rangeKey } from '../history/range'
+import type { Bucket, TimeRange } from '../history/range'
 import { useHistoryStore } from './history'
 
 interface Loaded {
@@ -28,14 +28,20 @@ function selectionKey(entity: LeaderboardEntity, range: TimeRange | null): strin
   return `${entity}:${rangeKey(range)}`
 }
 
+function bucketFor(range: TimeRange | null, coverage: TimeRange | null): Bucket {
+  const span = range ?? coverage
+  return span === null ? BUCKET.month : bucketForSpan(span.start, span.end)
+}
+
 async function fetchSelection(
   database: HistoryDatabase,
   entity: LeaderboardEntity,
   range: TimeRange | null,
+  bucket: Bucket,
 ): Promise<Loaded> {
   const [board, trend] = await Promise.all([
     database.query(leaderboardQuery(entity, range)),
-    database.query(trendQuery(entity, range)),
+    database.query(trendQuery(entity, range, bucket)),
   ])
   return { board, trend }
 }
@@ -53,8 +59,7 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
 
   const cache = new Map<string, Loaded>()
 
-  const ranked = computed(() => loaded.value.board.slice(0, size.value))
-  const charted = computed(() => loaded.value.trend)
+  const coverage = ref<TimeRange | null>(null)
 
   // A re-import rebuilds every table, so results cached against the old
   // database describe listening that is no longer what is stored.
@@ -72,7 +77,8 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
     loading.value = true
     problem.value = ''
     try {
-      const fresh = await fetchSelection(database, entity.value, range.value)
+      const bucket = bucketFor(range.value, coverage.value)
+      const fresh = await fetchSelection(database, entity.value, range.value, bucket)
       cache.set(key, fresh)
       if (request === latest) loaded.value = fresh
     } catch (error) {
@@ -98,5 +104,16 @@ export const useLeaderboardStore = defineStore('leaderboard', () => {
     await fetchInto(database, key, request)
   }
 
-  return { entity, size, range, loading, problem, ranked, charted, load }
+  return {
+    entity,
+    size,
+    range,
+    coverage,
+    loading,
+    problem,
+    load,
+    ranked: computed(() => loaded.value.board.slice(0, size.value)),
+    charted: computed(() => loaded.value.trend),
+    bucket: computed(() => bucketFor(range.value, coverage.value)),
+  }
 })

@@ -150,6 +150,16 @@ describe('HistoryOverviewView', () => {
     expect(trigger.getAttribute('aria-describedby')).toBe(caveat.getAttribute('id'))
   })
 
+  it('offers the detail page with nothing picked, so it opens on the search', async () => {
+    stubDatabase()
+
+    render(HistoryOverviewView)
+
+    const link = await screen.findByRole('link', { name: 'One thing in detail' })
+
+    expect(link.getAttribute('href')).toBe('/history/item')
+  })
+
   it('offers the query console as the way to explore for now', async () => {
     stubDatabase()
 

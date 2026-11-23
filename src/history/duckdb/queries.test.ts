@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { PLAY_KIND } from '../export/tables'
-import { yearRange } from '../range'
+import type { ItemRef } from '../itemRef'
+import { BUCKET, yearRange } from '../range'
 import {
   HISTORY_QUERIES,
   LEADERBOARD_ENTITY,
   LEADERBOARD_SIZES,
   MIN_PLAY_MS,
   TOTALS_QUERY,
+  itemSongsQuery,
+  itemSummaryQuery,
   leaderboardQuery,
+  progressionQuery,
+  searchQuery,
   trendQuery,
 } from './queries'
 
@@ -132,8 +137,145 @@ describe('leaderboard and trend queries', () => {
   })
 })
 
+describe('searchQuery', () => {
+  it('binds the fragment rather than pasting it into the statement', () => {
+    const query = searchQuery(LEADERBOARD_ENTITY.artist, 'radio')
+
+    expect(query.sql).not.toContain('radio')
+    expect(query.defaultParams).toEqual(['%radio%'])
+  })
+
+  it('escapes wildcards, so a literal percent does not match everything', () => {
+    expect(searchQuery(LEADERBOARD_ENTITY.song, '50%').defaultParams).toEqual(['%50\\%%'])
+    expect(searchQuery(LEADERBOARD_ENTITY.song, 'a_b').defaultParams).toEqual(['%a\\_b%'])
+  })
+
+  it('returns the stable URI for songs and nothing for the rest', () => {
+    expect(flat(searchQuery(LEADERBOARD_ENTITY.song, 'x').sql)).toContain('t.uri AS uri')
+    expect(flat(searchQuery(LEADERBOARD_ENTITY.artist, 'x').sql)).toContain(
+      'CAST(NULL AS TEXT) AS uri',
+    )
+  })
+
+  it('keeps the floor and the track filter that every other statistic uses', () => {
+    for (const entity of ENTITIES) {
+      const { sql } = searchQuery(entity, 'x')
+
+      expect(sql).toContain(`p.kind = '${PLAY_KIND.track}'`)
+      expect(sql).toContain(`p.ms_played >= ${MIN_PLAY_MS}`)
+    }
+  })
+})
+
+describe('itemSummaryQuery and progressionQuery', () => {
+  const ARTIST: ItemRef = { entity: LEADERBOARD_ENTITY.artist, name: 'Radiohead' }
+  const SONG: ItemRef = { entity: LEADERBOARD_ENTITY.song, uri: 'spotify:track:abc' }
+  const ALBUM: ItemRef = { entity: LEADERBOARD_ENTITY.album, name: 'Kid A', artist: 'Radiohead' }
+
+  it('matches a song on its URI and never on its name', () => {
+    const query = itemSummaryQuery(SONG)
+
+    expect(query.sql).toContain('t.uri = ?')
+    expect(query.defaultParams).toEqual(['spotify:track:abc'])
+  })
+
+  it('matches an artist on the only identity the export gives it', () => {
+    expect(itemSummaryQuery(ARTIST).defaultParams).toEqual(['Radiohead'])
+  })
+
+  it('matches an album on name and artist together, since names repeat', () => {
+    const query = itemSummaryQuery(ALBUM)
+
+    expect(query.sql).toContain('al.name = ? AND a.name IS NOT DISTINCT FROM ?')
+    expect(query.defaultParams).toEqual(['Kid A', 'Radiohead'])
+  })
+
+  it('finds an album whose artist the export never named', () => {
+    const ref: ItemRef = { entity: LEADERBOARD_ENTITY.album, name: 'Untitled', artist: null }
+
+    expect(itemSummaryQuery(ref).defaultParams).toEqual(['Untitled', null])
+  })
+
+  it('binds the match before the range, in the order the clauses are written', () => {
+    const query = progressionQuery(ALBUM, yearRange(2024), BUCKET.week)
+
+    expect(query.defaultParams).toEqual(['Kid A', 'Radiohead', '2024-01-01', '2025-01-01'])
+  })
+
+  it('binds every placeholder it writes, at every bucket and range', () => {
+    for (const ref of [ARTIST, SONG, ALBUM]) {
+      for (const range of [null, yearRange(2024)]) {
+        for (const bucket of Object.values(BUCKET)) {
+          const query = progressionQuery(ref, range, bucket)
+
+          expect(placeholderCount(query.sql)).toBe(query.defaultParams?.length)
+        }
+      }
+    }
+  })
+
+  it('buckets at the granularity it was asked for', () => {
+    expect(progressionQuery(ARTIST, null, BUCKET.day).sql).toContain("date_trunc('day'")
+    expect(progressionQuery(ARTIST, null, BUCKET.week).sql).toContain("date_trunc('week'")
+  })
+
+  it('collapses the empty-result nulls so the row schema still parses', () => {
+    const { sql } = itemSummaryQuery(ARTIST)
+
+    expect(sql).toContain('coalesce(round(sum(ms_played)')
+    expect(sql).toContain("coalesce(strftime(min(ts), '%Y-%m-%d'), '')")
+  })
+})
+
+describe('itemSongsQuery', () => {
+  const ARTIST: ItemRef = { entity: LEADERBOARD_ENTITY.artist, name: 'Radiohead' }
+  const ALBUM: ItemRef = { entity: LEADERBOARD_ENTITY.album, name: 'Kid A', artist: 'Radiohead' }
+
+  it('joins tracks for an artist, which the artist board never does', () => {
+    const { sql } = itemSongsQuery(ARTIST, null)
+
+    expect(flat(sql)).toContain('JOIN tracks t USING (track_id)')
+    expect(flat(sql)).toContain('a.artist_id = t.artist_id')
+  })
+
+  it('groups by the track key so a renamed song stays one row', () => {
+    expect(flat(itemSongsQuery(ALBUM, null).sql)).toContain(
+      'GROUP BY t.track_id, t.name, al.name, t.uri',
+    )
+  })
+
+  it('carries the album as the subtitle, left joined so an album-less track survives', () => {
+    const { sql } = itemSongsQuery(ARTIST, null)
+
+    expect(flat(sql)).toContain('al.name AS subtitle')
+    expect(flat(sql)).toContain('LEFT JOIN albums al USING (album_id)')
+  })
+
+  it('comes back shaped as a leaderboard row, so the ranked table renders it', () => {
+    const { sql, row } = itemSongsQuery(ARTIST, null)
+
+    expect(flat(sql)).toContain('t.track_id AS id')
+    expect(flat(sql)).toContain('t.uri AS uri')
+    expect(row).toBe(leaderboardQuery(LEADERBOARD_ENTITY.artist, null).row)
+  })
+
+  it('narrows to the range, binding the match first', () => {
+    const query = itemSongsQuery(ALBUM, yearRange(2024))
+
+    expect(query.defaultParams).toEqual(['Kid A', 'Radiohead', '2024-01-01', '2025-01-01'])
+    expect(placeholderCount(query.sql)).toBe(query.defaultParams?.length)
+  })
+
+  it('keeps the floor and the track filter', () => {
+    const { sql } = itemSongsQuery(ARTIST, null)
+
+    expect(sql).toContain(`p.kind = '${PLAY_KIND.track}'`)
+    expect(sql).toContain(`p.ms_played >= ${MIN_PLAY_MS}`)
+  })
+})
+
 describe('leaderboard rows', () => {
-  const ROW = { id: 4, name: 'Radiohead', subtitle: null, plays: 1284, hours: 87.2 }
+  const ROW = { id: 4, name: 'Radiohead', subtitle: null, uri: null, plays: 1284, hours: 87.2 }
   const { row } = leaderboardQuery(LEADERBOARD_ENTITY.artist, null)
 
   it('parses a row the database really returns', () => {
